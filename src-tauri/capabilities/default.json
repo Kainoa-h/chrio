@@ -2,9 +2,23 @@
   "$schema": "../gen/schemas/desktop-schema.json",
   "identifier": "default",
   "description": "Capability for the main window",
-  "windows": ["main"],
+  "windows": [
+    "main"
+  ],
   "permissions": [
     "core:default",
-    "opener:default"
+    "opener:default",
+    {
+      "identifier": "sql:allow-load",
+      "allow": ["sqlite:chrio.db"]
+    },
+    {
+      "identifier": "sql:allow-execute",
+      "allow": ["sqlite:chrio.db"]
+    },
+    {
+      "identifier": "sql:allow-select",
+      "allow": ["sqlite:chrio.db"]
+    }
   ]
 }
