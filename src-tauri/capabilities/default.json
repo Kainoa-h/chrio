@@ -7,18 +7,6 @@
   ],
   "permissions": [
     "core:default",
-    "opener:default",
-    {
-      "identifier": "sql:allow-load",
-      "allow": ["sqlite:chrio.db"]
-    },
-    {
-      "identifier": "sql:allow-execute",
-      "allow": ["sqlite:chrio.db"]
-    },
-    {
-      "identifier": "sql:allow-select",
-      "allow": ["sqlite:chrio.db"]
-    }
+    "opener:default"
   ]
 }

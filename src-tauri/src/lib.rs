@@ -1,15 +1,34 @@
-// Learn more about Tauri commands at https://tauri.app/develop/calling-rust/
-#[tauri::command]
-fn greet(name: &str) -> String {
-    format!("Hello, {}! You've been greeted from Rust!", name)
-}
+mod commands;
+mod db;
+mod models;
+
+use tauri_specta::{collect_commands, Builder};
+use tauri::Manager;
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
+    let builder = Builder::<tauri::Wry>::new()
+        .commands(collect_commands![
+            commands::get_clients,
+            commands::add_client
+        ]);
+
+    #[cfg(debug_assertions)]
+    builder
+        .export(specta_typescript::Typescript::default(), "../src/bindings.ts")
+        .expect("Failed to export typescript bindings");
+
     tauri::Builder::default()
-        .plugin(tauri_plugin_sql::Builder::new().build())
         .plugin(tauri_plugin_opener::init())
-        .invoke_handler(tauri::generate_handler![greet])
+        .invoke_handler(builder.invoke_handler())
+        .setup(|app| {
+            let handle = app.handle().clone();
+            tauri::async_runtime::block_on(async move {
+                let db = db::init_db(&handle).await.expect("Failed to initialize database");
+                handle.manage(db);
+            });
+            Ok(())
+        })
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }

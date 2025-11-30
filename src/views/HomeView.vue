@@ -1,9 +1,10 @@
 <script setup lang="ts">
 import { ref, onMounted } from "vue";
-import { useDbStore } from "../stores/db";
+import { useClientStore } from "../stores/client";
+import { storeToRefs } from "pinia";
 
-const dbStore = useDbStore();
-const clients = ref<any[]>([]);
+const clientStore = useClientStore();
+const { clients } = storeToRefs(clientStore);
 const showAddModal = ref(false);
 const newClient = ref({
   firstname: "",
@@ -12,17 +13,10 @@ const newClient = ref({
   sex: "M"
 });
 
-async function loadClients() {
-  const result = await dbStore.getClients();
-  if (result) {
-    clients.value = result as any[];
-  }
-}
-
 async function handleAddClient() {
   if (!newClient.value.firstname || !newClient.value.lastname) return;
   
-  await dbStore.addClient(newClient.value);
+  await clientStore.addClient(newClient.value);
   showAddModal.value = false;
   
   // Reset form
@@ -32,8 +26,6 @@ async function handleAddClient() {
     dob: "",
     sex: "M"
   };
-  
-  await loadClients();
 }
 
 function formatDate(dateString: string) {
@@ -42,8 +34,7 @@ function formatDate(dateString: string) {
 }
 
 onMounted(async () => {
-  await dbStore.init();
-  await loadClients();
+  await clientStore.loadClients();
 });
 </script>
 
