@@ -7,132 +7,41 @@ const store = useGreetStore();
 const { name, greetMsg } = storeToRefs(store);
 
 async function greet() {
-  // Learn more about Tauri commands at https://tauri.app/develop/calling-rust/
   store.greetMsg = await invoke("greet", { name: store.name });
 }
 </script>
 
 <template>
-  <div class="container">
-    <h1>Welcome to Tauri + Vue</h1>
+  <div class="flex flex-col items-center justify-center pt-[10vh] text-center">
+    <h1 class="text-4xl font-bold mb-8">Welcome to Tauri + Vue</h1>
 
-    <div class="row">
-      <a href="https://vite.dev" target="_blank">
-        <img src="/vite.svg" class="logo vite" alt="Vite logo" />
+    <div class="flex justify-center gap-8 mb-4">
+      <a href="https://vite.dev" target="_blank" class="hover:drop-shadow-[0_0_2em_#747bff] transition-all duration-700">
+        <img src="/vite.svg" class="h-24 p-6" alt="Vite logo" />
       </a>
-      <a href="https://tauri.app" target="_blank">
-        <img src="/tauri.svg" class="logo tauri" alt="Tauri logo" />
+      <a href="https://tauri.app" target="_blank" class="hover:drop-shadow-[0_0_2em_#24c8db] transition-all duration-700">
+        <img src="/tauri.svg" class="h-24 p-6" alt="Tauri logo" />
       </a>
-      <a href="https://vuejs.org/" target="_blank">
-        <img src="../assets/vue.svg" class="logo vue" alt="Vue logo" />
+      <a href="https://vuejs.org/" target="_blank" class="hover:drop-shadow-[0_0_2em_#249b73] transition-all duration-700">
+        <img src="../assets/vue.svg" class="h-24 p-6" alt="Vue logo" />
       </a>
     </div>
-    <p>Click on the Tauri, Vite, and Vue logos to learn more.</p>
+    <p class="mb-8">Click on the Tauri, Vite, and Vue logos to learn more.</p>
 
-    <form class="row" @submit.prevent="greet">
-      <input id="greet-input" v-model="name" placeholder="Enter a name..." />
-      <button type="submit">Greet</button>
+    <form class="flex justify-center gap-2 mb-4" @submit.prevent="greet">
+      <input 
+        id="greet-input" 
+        v-model="name" 
+        placeholder="Enter a name..." 
+        class="rounded-lg border border-transparent px-5 py-2.5 text-base font-medium bg-white dark:bg-[#0f0f0f98] text-[#0f0f0f] dark:text-white shadow-md transition-colors duration-250 outline-none focus:border-[#396cd8]"
+      />
+      <button 
+        type="submit"
+        class="rounded-lg border border-transparent px-5 py-2.5 text-base font-medium bg-white dark:bg-[#0f0f0f98] text-[#0f0f0f] dark:text-white shadow-md cursor-pointer transition-colors duration-250 outline-none hover:border-[#396cd8] active:bg-gray-200 dark:active:bg-[#0f0f0f69]"
+      >
+        Greet
+      </button>
     </form>
     <p>{{ greetMsg }}</p>
   </div>
 </template>
-
-<style scoped>
-.logo.vite:hover {
-  filter: drop-shadow(0 0 2em #747bff);
-}
-
-.logo.vue:hover {
-  filter: drop-shadow(0 0 2em #249b73);
-}
-
-.container {
-  margin: 0;
-  padding-top: 10vh;
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  text-align: center;
-}
-
-.logo {
-  height: 6em;
-  padding: 1.5em;
-  will-change: filter;
-  transition: 0.75s;
-}
-
-.logo.tauri:hover {
-  filter: drop-shadow(0 0 2em #24c8db);
-}
-
-.row {
-  display: flex;
-  justify-content: center;
-}
-
-a {
-  font-weight: 500;
-  color: #646cff;
-  text-decoration: inherit;
-}
-
-a:hover {
-  color: #535bf2;
-}
-
-h1 {
-  text-align: center;
-}
-
-input,
-button {
-  border-radius: 8px;
-  border: 1px solid transparent;
-  padding: 0.6em 1.2em;
-  font-size: 1em;
-  font-weight: 500;
-  font-family: inherit;
-  color: #0f0f0f;
-  background-color: #ffffff;
-  transition: border-color 0.25s;
-  box-shadow: 0 2px 2px rgba(0, 0, 0, 0.2);
-}
-
-button {
-  cursor: pointer;
-}
-
-button:hover {
-  border-color: #396cd8;
-}
-button:active {
-  border-color: #396cd8;
-  background-color: #e8e8e8;
-}
-
-input,
-button {
-  outline: none;
-}
-
-#greet-input {
-  margin-right: 5px;
-}
-
-@media (prefers-color-scheme: dark) {
-
-  a:hover {
-    color: #24c8db;
-  }
-
-  input,
-  button {
-    color: #ffffff;
-    background-color: #0f0f0f98;
-  }
-  button:active {
-    background-color: #0f0f0f69;
-  }
-}
-</style>
