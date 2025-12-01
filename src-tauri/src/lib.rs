@@ -10,7 +10,9 @@ pub fn run() {
     let builder = Builder::<tauri::Wry>::new()
         .commands(collect_commands![
             commands::get_clients,
-            commands::add_client
+            commands::add_client,
+            commands::get_client_sessions,
+            commands::add_session
         ]);
 
     #[cfg(debug_assertions)]
