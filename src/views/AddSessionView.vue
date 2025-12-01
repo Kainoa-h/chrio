@@ -150,28 +150,6 @@ onMounted(() => {
     </div>
 
     <form @submit.prevent="handleAddSession" class="bg-gray-950 p-6 rounded-md shadow-sm space-y-4 border border-gray-700">
-      <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <div>
-          <label for="height" class="block text-sm font-medium text-gray-300 mb-1">Height (cm)</label>
-          <input 
-            id="height"
-            v-model.number="newSession.height" 
-            type="number"
-            step="0.01"
-            class="w-full rounded-lg border border-gray-700 bg-gray-900 px-3 py-2 focus:ring-1 focus:ring-blue-500 focus:border-blue-500 text-gray-200"
-          />
-        </div>
-        <div>
-          <label for="weight" class="block text-sm font-medium text-gray-300 mb-1">Weight (kg)</label>
-          <input 
-            id="weight"
-            v-model.number="newSession.weight" 
-            type="number"
-            step="0.01"
-            class="w-full rounded-lg border border-gray-700 bg-gray-900 px-3 py-2 focus:ring-1 focus:ring-blue-500 focus:border-blue-500 text-gray-200"
-          />
-        </div>
-      </div>
 
       <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
         <!-- Anterior -->
@@ -308,6 +286,29 @@ onMounted(() => {
               </div>
             </template>
           </RatioImage>
+        </div>
+      </div>
+
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div>
+          <label for="height" class="block text-sm font-medium text-gray-300 mb-1">Height (cm)</label>
+          <input 
+            id="height"
+            v-model.number="newSession.height" 
+            type="number"
+            step="0.01"
+            class="w-full rounded-lg border border-gray-700 bg-gray-900 px-3 py-2 focus:ring-1 focus:ring-blue-500 focus:border-blue-500 text-gray-200"
+          />
+        </div>
+        <div>
+          <label for="weight" class="block text-sm font-medium text-gray-300 mb-1">Weight (kg)</label>
+          <input 
+            id="weight"
+            v-model.number="newSession.weight" 
+            type="number"
+            step="0.01"
+            class="w-full rounded-lg border border-gray-700 bg-gray-900 px-3 py-2 focus:ring-1 focus:ring-blue-500 focus:border-blue-500 text-gray-200"
+          />
         </div>
       </div>
 
