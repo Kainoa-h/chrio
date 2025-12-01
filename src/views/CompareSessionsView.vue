@@ -362,6 +362,7 @@ const imageTypes = [
       :show="showCropper"
       :image-src="(activeCropSessionId && activeCropType) ? images[activeCropSessionId]?.[activeCropType] : null"
       :initial-crop="activeInitialCrop"
+      :image-type="activeCropType"
       @close="showCropper = false"
       @save="handleCropSave"
     />

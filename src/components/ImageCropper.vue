@@ -1,12 +1,27 @@
 <script setup lang="ts">
 import { ref, onMounted, computed, watch } from 'vue';
 import { X, Check } from 'lucide-vue-next';
+import anteriorMask from '@/assets/alignment-mask-anterior.svg';
+import posteriorMask from '@/assets/alignment-mask-posterior.svg';
+import rightLateralMask from '@/assets/alignment-mask-right-lateral.svg';
+import leftLateralMask from '@/assets/alignment-mask-left-lateral.svg';
 
 const props = defineProps<{
   show: boolean;
   imageSrc: string | null;
   initialCrop?: { x: number, y: number, width: number } | null;
+  imageType?: string | null;
 }>();
+
+const maskSrc = computed(() => {
+  switch (props.imageType) {
+    case 'anterior': return anteriorMask;
+    case 'posterior': return posteriorMask;
+    case 'right_lateral': return rightLateralMask;
+    case 'left_lateral': return leftLateralMask;
+    default: return null;
+  }
+});
 
 const emit = defineEmits<{
   (e: 'close'): void;
@@ -234,6 +249,13 @@ watch(() => props.show, (newVal) => {
             <div class="absolute inset-0 pointer-events-none border border-white border-opacity-20 grid grid-cols-3 grid-rows-3">
                <!-- We can use background image or separate divs for grid, but keep it simple -->
             </div>
+
+            <!-- Alignment Mask Overlay -->
+            <img 
+              v-if="maskSrc"
+              :src="maskSrc"
+              class="absolute inset-0 w-full h-full object-cover pointer-events-none opacity-50"
+            />
           </div>
         </div>
       </div>

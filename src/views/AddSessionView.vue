@@ -354,6 +354,7 @@ onMounted(() => {
       :show="showCropper"
       :image-src="activeImageType ? imagePreviews[activeImageType] : null"
       :initial-crop="activeImageType ? cropData[activeImageType] : null"
+      :image-type="activeImageType"
       @close="showCropper = false"
       @save="handleCropSave"
     />

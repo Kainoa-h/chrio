@@ -1,0 +1,99 @@
+<svg width="400" height="600" viewBox="0 0 400 600" xmlns="http://www.w3.org/2000/svg">
+  <!-- Semi-transparent background for overlay -->
+  <rect width="400" height="600" fill="none"/>
+  
+  <!-- Human outline mask - lateral (side) view -->
+  <g id="humanOutline" stroke="#00ff00" stroke-width="3" fill="none" opacity="0.7">
+    
+    <!-- Head (profile) - centered at x=200, matching anterior/posterior -->
+    <path d="M 200 25 Q 220 25 235 40 Q 242 52 242 65 Q 240 82 230 95 Q 218 105 200 108"/>
+    <path d="M 200 25 Q 185 27 175 38 Q 168 50 168 65 Q 170 82 180 95 Q 188 105 200 108"/>
+    
+    <!-- Face features (minimal) -->
+    <circle cx="220" cy="60" r="3" fill="#00ff00" opacity="0.5"/>
+    
+    <!-- Neck -->
+    <line x1="200" y1="108" x2="193" y2="140"/>
+    <path d="M 200 108 Q 213 118 217 140"/>
+    
+    <!-- Back of neck/upper back -->
+    <path d="M 193 140 Q 188 152 185 175"/>
+    
+    <!-- Chest/front torso -->
+    <path d="M 217 140 Q 235 165 242 200 Q 245 240 242 280 Q 238 320 233 350"/>
+    
+    <!-- Back -->
+    <path d="M 185 175 Q 180 220 178 270 Q 177 320 182 360 Q 186 380 192 395"/>
+    
+    <!-- Bottom of torso to hip -->
+    <path d="M 233 350 Q 228 370 223 390"/>
+    
+    <!-- Hip curve -->
+    <path d="M 223 390 Q 218 400 215 410"/>
+    <path d="M 192 395 Q 198 403 203 410"/>
+    
+    <!-- Front of leg -->
+    <line x1="215" y1="410" x2="220" y2="510"/>
+    <path d="M 220 510 Q 223 535 225 555"/>
+    <line x1="225" y1="555" x2="228" y2="570"/>
+    
+    <!-- Back of leg -->
+    <line x1="203" y1="410" x2="200" y2="510"/>
+    <path d="M 200 510 Q 198 535 197 555"/>
+    <line x1="197" y1="555" x2="195" y2="570"/>
+    
+    <!-- Foot (side view) -->
+    <path d="M 228 570 Q 238 573 252 574 Q 262 574 270 573"/>
+    <path d="M 195 570 Q 192 573 192 577 Q 192 580 197 582"/>
+    <line x1="228" y1="570" x2="195" y2="570"/>
+    
+    <!-- Arm (front) -->
+    <path d="M 217 140 Q 228 148 238 190 Q 245 235 248 280 Q 250 315 253 345"/>
+    
+    <!-- Forearm -->
+    <path d="M 253 345 Q 256 365 259 380"/>
+    
+    <!-- Hand indicator -->
+    <ellipse cx="262" cy="390" rx="8" ry="10"/>
+    
+    <!-- Shoulder indicator -->
+    <circle cx="217" cy="140" r="5" opacity="0.5"/>
+    
+    <!-- Vertical reference line (center of body depth) -->
+    <line x1="200" y1="0" x2="200" y2="600" stroke-dasharray="5,5" opacity="0.5"/>
+    
+    <!-- Horizontal reference lines -->
+    <line x1="0" y1="75" x2="400" y2="75" stroke-dasharray="5,5" opacity="0.3"/>
+    <line x1="0" y1="150" x2="400" y2="150" stroke-dasharray="5,5" opacity="0.3"/>
+    <line x1="0" y1="380" x2="400" y2="380" stroke-dasharray="5,5" opacity="0.3"/>
+    <line x1="0" y1="550" x2="400" y2="550" stroke-dasharray="5,5" opacity="0.3"/>
+    
+  </g>
+  
+  <!-- Corner markers for crop boundaries -->
+  <g stroke="#ff0000" stroke-width="2" fill="none">
+    <!-- Top-left -->
+    <line x1="0" y1="0" x2="20" y2="0"/>
+    <line x1="0" y1="0" x2="0" y2="20"/>
+    
+    <!-- Top-right -->
+    <line x1="380" y1="0" x2="400" y2="0"/>
+    <line x1="400" y1="0" x2="400" y2="20"/>
+    
+    <!-- Bottom-left -->
+    <line x1="0" y1="580" x2="0" y2="600"/>
+    <line x1="0" y1="600" x2="20" y2="600"/>
+    
+    <!-- Bottom-right -->
+    <line x1="400" y1="580" x2="400" y2="600"/>
+    <line x1="380" y1="600" x2="400" y2="600"/>
+  </g>
+  
+  <!-- Labels -->
+  <text x="200" y="20" font-family="Arial, sans-serif" font-size="14" fill="#00ff00" text-anchor="middle" opacity="0.7">RIGHT LATERAL VIEW</text>
+  <text x="10" y="595" font-family="Arial, sans-serif" font-size="10" fill="#ff0000" opacity="0.7">2:3 RATIO</text>
+  
+  <!-- Direction indicator -->
+  <text x="350" y="30" font-family="Arial, sans-serif" font-size="10" fill="#00ff00" text-anchor="middle" opacity="0.5">→ ANTERIOR</text>
+  
+</svg>
