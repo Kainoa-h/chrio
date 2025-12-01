@@ -13,7 +13,8 @@ pub fn run() {
             commands::add_client,
             commands::get_client_sessions,
             commands::add_session,
-            commands::save_image
+            commands::save_image,
+            commands::read_image_base64
         ]);
 
     #[cfg(debug_assertions)]
@@ -23,6 +24,7 @@ pub fn run() {
 
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
+        .plugin(tauri_plugin_fs::init())
         .invoke_handler(builder.invoke_handler())
         .setup(|app| {
             let handle = app.handle().clone();

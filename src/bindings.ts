@@ -44,6 +44,14 @@ async saveImage(clientId: number, clientFirstname: string, sessionNo: number, im
     if(e instanceof Error) throw e;
     else return { status: "error", error: e  as any };
 }
+},
+async readImageBase64(path: string) : Promise<Result<string, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("read_image_base64", { path }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
 }
 }
 

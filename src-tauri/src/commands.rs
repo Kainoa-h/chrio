@@ -72,3 +72,11 @@ pub async fn save_image(
     
     Ok(file_path.to_string_lossy().to_string())
 }
+
+#[tauri::command]
+#[specta]
+pub async fn read_image_base64(path: String) -> Result<String, String> {
+    let image_data = fs::read(&path).map_err(|e| e.to_string())?;
+    let base64_data = general_purpose::STANDARD.encode(image_data);
+    Ok(format!("data:image/jpeg;base64,{}", base64_data))
+}
