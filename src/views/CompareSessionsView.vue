@@ -1,10 +1,11 @@
 <script setup lang="ts">
-import { ref, onMounted, computed } from "vue";
+import { ref, onMounted, computed, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { commands, type Session } from "@/bindings";
-import { ArrowLeft, ChevronsLeft, ChevronLeft, ChevronRight, ChevronsRight } from "lucide-vue-next";
+import { ArrowLeft, ChevronsLeft, ChevronLeft, ChevronRight, ChevronsRight, ChevronsLeftRight } from "lucide-vue-next";
 import RatioImage from "@/components/RatioImage.vue";
 import ImageCropper from "@/components/ImageCropper.vue";
+import ImageComparisonModal from "@/components/ImageComparisonModal.vue";
 
 const route = useRoute();
 const router = useRouter();
@@ -22,8 +23,10 @@ const error = ref<string | null>(null);
 const images = ref<Record<number, Record<string, string>>>({});
 
 const showCropper = ref(false);
+const showComparisonModal = ref(false);
 const activeCropSessionId = ref<number | null>(null);
 const activeCropType = ref<string | null>(null);
+const activeComparisonType = ref<string | null>(null);
 
 // Available sessions for the left side (must be older than session 2)
 const availableLeftSessions = computed(() => {
@@ -37,6 +40,13 @@ const availableLeftSessions = computed(() => {
 const currentLeftIndex = computed(() => {
   if (!session1.value) return -1;
   return availableLeftSessions.value.findIndex(s => s.id === session1.value!.id);
+});
+
+// Compute crop data for the active session being cropped
+const activeInitialCrop = computed(() => {
+  if (!activeCropSessionId.value || !activeCropType.value) return null;
+  const session = [session1.value, session2.value].find(s => s?.id === activeCropSessionId.value);
+  return getParsedCrop(session || null, activeCropType.value);
 });
 
 async function updateSession1(newSession: Session) {
@@ -185,11 +195,12 @@ async function handleCropSave(cropData: { x: number, y: number, width: number })
   }
 }
 
-const activeInitialCrop = computed(() => {
-  if (!activeCropSessionId.value || !activeCropType.value) return null;
-  const session = [session1.value, session2.value].find(s => s?.id === activeCropSessionId.value);
-  return getParsedCrop(session || null, activeCropType.value);
-});
+function openComparison(type: string) {
+  if (session1.value && session2.value) {
+    activeComparisonType.value = type;
+    showComparisonModal.value = true;
+  }
+}
 
 const imageTypes = [
   { key: 'anterior', label: 'Anterior' },
@@ -295,8 +306,15 @@ const imageTypes = [
       <!-- Images Rows -->
       <template v-for="type in imageTypes" :key="type.key">
         <!-- Label Row -->
-        <div class="col-span-2 text-center py-2 border-b border-gray-700">
+        <div class="col-span-2 text-center py-2 border-b border-gray-700 flex items-center justify-center gap-3">
           <h3 class="text-lg font-medium text-gray-300">{{ type.label }}</h3>
+          <button 
+            @click="openComparison(type.key)"
+            class="p-1.5 bg-gray-800 text-gray-300 rounded hover:bg-gray-700 hover:text-white transition-colors"
+            title="Compare Before/After"
+          >
+            <ChevronsLeftRight class="w-4 h-4" />
+          </button>
         </div>
 
         <!-- Image 1 -->
@@ -365,6 +383,18 @@ const imageTypes = [
       :image-type="activeCropType"
       @close="showCropper = false"
       @save="handleCropSave"
+    />
+
+    <ImageComparisonModal
+      :show="showComparisonModal"
+      :title="imageTypes.find(t => t.key === activeComparisonType)?.label || ''"
+      :image1-src="(session1 && activeComparisonType) ? images[session1.id]?.[activeComparisonType] : null"
+      :image2-src="(session2 && activeComparisonType) ? images[session2.id]?.[activeComparisonType] : null"
+      :crop1="getParsedCrop(session1, activeComparisonType || '')"
+      :crop2="getParsedCrop(session2, activeComparisonType || '')"
+      :label1="session1 ? `Session #${session1.session_number}` : 'Before'"
+      :label2="session2 ? `Session #${session2.session_number}` : 'After'"
+      @close="showComparisonModal = false"
     />
   </div>
 </template>
