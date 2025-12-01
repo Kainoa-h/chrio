@@ -161,25 +161,38 @@ const imageTypes = [
       <div class="col-span-2 mt-8">
         <h3 class="text-xl font-bold text-gray-200 mb-4 border-b border-gray-700 pb-2">Data Comparison</h3>
         
-        <div class="grid grid-cols-3 gap-4 text-sm">
-           <div class="font-bold text-gray-400 text-right pr-4">Field</div>
-           <div class="font-bold text-gray-300 text-center">Session #{{ session1?.session_number }}</div>
-           <div class="font-bold text-gray-300 text-center">Session #{{ session2?.session_number }}</div>
+        <div class="grid grid-cols-2 gap-8">
+          <!-- Session 1 Data -->
+          <div class="bg-gray-900 rounded-lg border border-gray-700 p-4 space-y-3">
+             <div class="flex justify-between items-center border-b border-gray-800 pb-2">
+               <span class="text-gray-400 font-medium">Height</span>
+               <span class="text-gray-200 font-bold">{{ session1?.height ? session1.height + ' cm' : '-' }}</span>
+             </div>
+             <div class="flex justify-between items-center border-b border-gray-800 pb-2">
+               <span class="text-gray-400 font-medium">Weight</span>
+               <span class="text-gray-200 font-bold">{{ session1?.weight ? session1.weight + ' kg' : '-' }}</span>
+             </div>
+             <div class="pt-1">
+               <span class="text-gray-400 font-medium block mb-1">Notes</span>
+               <div class="text-gray-300 text-sm bg-gray-950 p-2 rounded border border-gray-800 min-h-[3rem] whitespace-pre-wrap">{{ session1?.notes || '-' }}</div>
+             </div>
+          </div>
 
-           <!-- Height -->
-           <div class="text-gray-400 text-right pr-4 py-2 border-b border-gray-800">Height</div>
-           <div class="text-gray-200 text-center py-2 border-b border-gray-800">{{ session1?.height ? session1.height + ' cm' : '-' }}</div>
-           <div class="text-gray-200 text-center py-2 border-b border-gray-800">{{ session2?.height ? session2.height + ' cm' : '-' }}</div>
-
-           <!-- Weight -->
-           <div class="text-gray-400 text-right pr-4 py-2 border-b border-gray-800">Weight</div>
-           <div class="text-gray-200 text-center py-2 border-b border-gray-800">{{ session1?.weight ? session1.weight + ' kg' : '-' }}</div>
-           <div class="text-gray-200 text-center py-2 border-b border-gray-800">{{ session2?.weight ? session2.weight + ' kg' : '-' }}</div>
-
-           <!-- Notes -->
-           <div class="text-gray-400 text-right pr-4 py-2">Notes</div>
-           <div class="text-gray-200 p-2 bg-gray-900 rounded border border-gray-700 text-xs whitespace-pre-wrap">{{ session1?.notes || '-' }}</div>
-           <div class="text-gray-200 p-2 bg-gray-900 rounded border border-gray-700 text-xs whitespace-pre-wrap">{{ session2?.notes || '-' }}</div>
+          <!-- Session 2 Data -->
+          <div class="bg-gray-900 rounded-lg border border-gray-700 p-4 space-y-3">
+             <div class="flex justify-between items-center border-b border-gray-800 pb-2">
+               <span class="text-gray-400 font-medium">Height</span>
+               <span class="text-gray-200 font-bold">{{ session2?.height ? session2.height + ' cm' : '-' }}</span>
+             </div>
+             <div class="flex justify-between items-center border-b border-gray-800 pb-2">
+               <span class="text-gray-400 font-medium">Weight</span>
+               <span class="text-gray-200 font-bold">{{ session2?.weight ? session2.weight + ' kg' : '-' }}</span>
+             </div>
+             <div class="pt-1">
+               <span class="text-gray-400 font-medium block mb-1">Notes</span>
+               <div class="text-gray-300 text-sm bg-gray-950 p-2 rounded border border-gray-800 min-h-[3rem] whitespace-pre-wrap">{{ session2?.notes || '-' }}</div>
+             </div>
+          </div>
         </div>
       </div>
     </div>
