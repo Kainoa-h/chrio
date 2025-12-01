@@ -1,8 +1,8 @@
 <script setup lang="ts">
-import { ref, onMounted } from "vue";
+import { ref, onMounted, computed, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { commands, type Session } from "@/bindings";
-import { ArrowLeft } from "lucide-vue-next";
+import { ArrowLeft, ChevronsLeft, ChevronLeft, ChevronRight, ChevronsRight } from "lucide-vue-next";
 import RatioImage from "@/components/RatioImage.vue";
 
 const route = useRoute();
@@ -11,6 +11,7 @@ const clientId = Number(route.params.clientId);
 const session1Id = Number(route.query.s1);
 const session2Id = Number(route.query.s2);
 
+const allSessions = ref<Session[]>([]);
 const session1 = ref<Session | null>(null);
 const session2 = ref<Session | null>(null);
 const loading = ref(true);
@@ -19,8 +20,64 @@ const error = ref<string | null>(null);
 // Store base64 images: images[sessionId][type] = base64String
 const images = ref<Record<number, Record<string, string>>>({});
 
+// Available sessions for the left side (must be older than session 2)
+const availableLeftSessions = computed(() => {
+  if (!session2.value) return [];
+  // sessions are sorted DESC by backend (newest first)
+  // We want sessions strictly older than session2 (lower session number or index > session2 index)
+  return allSessions.value.filter(s => s.session_number < session2.value!.session_number);
+});
+
+// Current index in the available list (0 is newest/closest to session 2, length-1 is oldest)
+const currentLeftIndex = computed(() => {
+  if (!session1.value) return -1;
+  return availableLeftSessions.value.findIndex(s => s.id === session1.value!.id);
+});
+
+async function updateSession1(newSession: Session) {
+  session1.value = newSession;
+  await loadSessionImages(newSession);
+  // Update URL without reloading
+  router.replace({ 
+    query: { ...route.query, s1: newSession.id } 
+  });
+}
+
+function jumpToOldest() {
+  const sessions = availableLeftSessions.value;
+  if (sessions.length > 0) {
+    updateSession1(sessions[sessions.length - 1]);
+  }
+}
+
+function moveBack() {
+  const index = currentLeftIndex.value;
+  const sessions = availableLeftSessions.value;
+  if (index < sessions.length - 1) {
+    updateSession1(sessions[index + 1]);
+  }
+}
+
+function moveForward() {
+  const index = currentLeftIndex.value;
+  const sessions = availableLeftSessions.value;
+  if (index > 0) {
+    updateSession1(sessions[index - 1]);
+  }
+}
+
+function jumpToNewestPossible() {
+  const sessions = availableLeftSessions.value;
+  if (sessions.length > 0) {
+    updateSession1(sessions[0]);
+  }
+}
+
 async function loadImage(sessionId: number, type: string, path: string | null) {
   if (!path) return;
+  // Don't reload if we have it
+  if (images.value[sessionId]?.[type]) return;
+
   try {
     const result = await commands.readImageBase64(path);
     if (result.status === "ok") {
@@ -45,9 +102,9 @@ onMounted(async () => {
   try {
     const result = await commands.getClientSessions(clientId);
     if (result.status === "ok") {
-      const allSessions = result.data;
-      session1.value = allSessions.find(s => s.id === session1Id) || null;
-      session2.value = allSessions.find(s => s.id === session2Id) || null;
+      allSessions.value = result.data;
+      session1.value = allSessions.value.find(s => s.id === session1Id) || null;
+      session2.value = allSessions.value.find(s => s.id === session2Id) || null;
 
       if (!session1.value || !session2.value) {
         error.value = "Could not find one or both sessions.";
@@ -121,17 +178,101 @@ const imageTypes = [
     </div>
 
     <div v-else class="grid grid-cols-2 gap-8">
-      <!-- Session 1 Header -->
-      <div class="bg-gray-900 p-4 rounded-t-lg border border-gray-700 text-center">
-        <h2 class="text-xl font-bold text-white">Session #{{ session1?.session_number }}</h2>
-        <p class="text-gray-400 text-sm">{{ formatDate(session1?.datetime) }}</p>
-      </div>
+      <!-- Sticky Header Container -->
+      <div class="sticky top-0 z-10 col-span-2 bg-transparent pb-4 -mx-8 px-8"> <!-- Negative margin to extend full width of original container -->
+        <div class="grid grid-cols-2 gap-8">
+          <!-- Session 1 Header -->
+          <div class="bg-gray-900 p-4 border border-gray-700">
+            <div class="flex items-center justify-between gap-2">
+              <div class="flex gap-1">
+                <button 
+                  @click="jumpToOldest" 
+                  :disabled="currentLeftIndex >= availableLeftSessions.length - 1"
+                  class="p-1 text-gray-400 hover:text-white disabled:opacity-30 disabled:hover:text-gray-400"
+                  title="Jump to First Session"
+                >
+                  <ChevronsLeft class="w-5 h-5" />
+                </button>
+                <button 
+                  @click="moveBack" 
+                  :disabled="currentLeftIndex >= availableLeftSessions.length - 1"
+                  class="p-1 text-gray-400 hover:text-white disabled:opacity-30 disabled:hover:text-gray-400"
+                  title="Previous Session"
+                >
+                  <ChevronLeft class="w-5 h-5" />
+                </button>
+              </div>
 
-      <!-- Session 2 Header -->
-      <div class="bg-gray-900 p-4 rounded-t-lg border border-gray-700 text-center">
-        <h2 class="text-xl font-bold text-white">Session #{{ session2?.session_number }}</h2>
-        <p class="text-gray-400 text-sm">{{ formatDate(session2?.datetime) }}</p>
+              <div class="flex-1 mx-2">
+                <select 
+                  v-if="session1"
+                  :value="session1.id"
+                  @change="e => updateSession1(allSessions.find(s => s.id === Number((e.target as HTMLSelectElement).value))!)"
+                  class="w-full bg-gray-800 border border-gray-600 text-white text-sm rounded px-2 py-1 focus:ring-1 focus:ring-blue-500 outline-none"
+                >
+                  <option 
+                    v-for="s in availableLeftSessions" 
+                    :key="s.id" 
+                    :value="s.id"
+                  >
+                    Session #{{ s.session_number }} - {{ formatDate(s.datetime) }}
+                  </option>
+                </select>
+              </div>
+
+              <div class="flex gap-1">
+                <button 
+                  @click="moveForward" 
+                  :disabled="currentLeftIndex <= 0"
+                  class="p-1 text-gray-400 hover:text-white disabled:opacity-30 disabled:hover:text-gray-400"
+                  title="Next Session"
+                >
+                  <ChevronRight class="w-5 h-5" />
+                </button>
+                <button 
+                  @click="jumpToNewestPossible" 
+                  :disabled="currentLeftIndex <= 0"
+                  class="p-1 text-gray-400 hover:text-white disabled:opacity-30 disabled:hover:text-gray-400"
+                  title="Jump to -1 of Right Session"
+                >
+                  <ChevronsRight class="w-5 h-5" />
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Session 2 Header -->
+          <div class="bg-gray-900 p-4 border border-gray-700 text-center flex flex-col justify-center h-[62px]">
+            <h2 class="text-xl font-bold text-white leading-tight">Session #{{ session2?.session_number }}</h2>
+            <p class="text-gray-400 text-xs leading-tight">{{ formatDate(session2?.datetime) }}</p>
+          </div>
+        </div>
       </div>
+      <!-- End Sticky Header Container -->
+
+      <!-- Images Rows -->
+      <template v-for="type in imageTypes" :key="type.key">
+        <!-- Label Row -->
+        <div class="col-span-2 text-center py-2 border-b border-gray-700">
+          <h3 class="text-lg font-medium text-gray-300">{{ type.label }}</h3>
+        </div>
+
+        <!-- Image 1 -->
+        <RatioImage 
+          :src="session1 && images[session1.id]?.[type.key] ? images[session1.id][type.key] : null" 
+          :crop="getParsedCrop(session1, type.key)"
+          empty-text="No Image" 
+          container-class="w-full" 
+        />
+
+        <!-- Image 2 -->
+        <RatioImage 
+          :src="session2 && images[session2.id]?.[type.key] ? images[session2.id][type.key] : null" 
+          :crop="getParsedCrop(session2, type.key)"
+          empty-text="No Image" 
+          container-class="w-full" 
+        />
+      </template>
 
       <!-- Images Rows -->
       <template v-for="type in imageTypes" :key="type.key">
