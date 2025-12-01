@@ -3,6 +3,7 @@ import HomeView from '../views/HomeView.vue';
 import AboutView from '../views/AboutView.vue';
 import ClientSessionsView from '../views/ClientSessionsView.vue';
 import AddSessionView from '../views/AddSessionView.vue';
+import CompareSessionsView from '../views/CompareSessionsView.vue';
 
 const routes = [
   {
@@ -24,6 +25,11 @@ const routes = [
     path: '/client/:id/sessions/new',
     name: 'add-session',
     component: AddSessionView,
+  },
+  {
+    path: '/client/:clientId/compare',
+    name: 'compare-sessions',
+    component: CompareSessionsView,
   },
 ];
 
