@@ -16,7 +16,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { ArrowLeft } from "lucide-vue-next";
+import { ArrowLeft, Plus } from "lucide-vue-next";
 
 const route = useRoute();
 const router = useRouter();
@@ -82,14 +82,22 @@ onMounted(async () => {
 
 <template>
   <div class="p-8 max-w-6xl mx-auto">
-    <div class="flex items-center mb-6">
+    <div class="flex justify-between items-center mb-6">
+      <div class="flex items-center">
+        <button 
+          @click="router.push({ name: 'home' })" 
+          class="mr-4 p-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
+        >
+          <ArrowLeft class="h-6 w-6 text-gray-600 dark:text-gray-300" />
+        </button>
+        <h1 class="text-3xl font-bold text-gray-900 dark:text-white">Client Sessions</h1>
+      </div>
       <button 
-        @click="router.back()" 
-        class="mr-4 p-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
+        @click="router.push({ name: 'add-session', params: { id: clientId } })"
+        class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg shadow-sm transition-colors flex items-center gap-2"
       >
-        <ArrowLeft class="h-6 w-6 text-gray-600 dark:text-gray-300" />
+        <Plus class="h-5 w-5" /> Add New Session
       </button>
-      <h1 class="text-3xl font-bold text-gray-900 dark:text-white">Client Sessions</h1>
     </div>
 
     <div v-if="loading" class="text-center py-8 text-gray-500">
