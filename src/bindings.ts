@@ -75,8 +75,8 @@ async getNextSessionNumber(clientId: number) : Promise<Result<number, string>> {
 
 export type Client = { id: number; firstname: string; lastname: string; dob: string; sex: string; registration_date: string }
 export type CreateClientDto = { firstname: string; lastname: string; dob: string; sex: string }
-export type CreateSessionDto = { client_id: number; height: number | null; weight: number | null; anterior: string | null; posterior: string | null; right_lateral: string | null; left_lateral: string | null; notes: string | null }
-export type Session = { id: number; client_id: number; datetime: string; session_number: number; height: number | null; weight: number | null; anterior: string | null; posterior: string | null; right_lateral: string | null; left_lateral: string | null; notes: string | null }
+export type CreateSessionDto = { client_id: number; height: number | null; weight: number | null; anterior: string | null; posterior: string | null; right_lateral: string | null; left_lateral: string | null; notes: string | null; anterior_crop: string | null; posterior_crop: string | null; right_lateral_crop: string | null; left_lateral_crop: string | null }
+export type Session = { id: number; client_id: number; datetime: string; session_number: number; height: number | null; weight: number | null; anterior: string | null; posterior: string | null; right_lateral: string | null; left_lateral: string | null; notes: string | null; anterior_crop: string | null; posterior_crop: string | null; right_lateral_crop: string | null; left_lateral_crop: string | null }
 
 /** tauri-specta globals **/
 

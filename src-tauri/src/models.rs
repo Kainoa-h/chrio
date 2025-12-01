@@ -63,6 +63,10 @@ pub struct Session {
     pub right_lateral: Option<String>,
     pub left_lateral: Option<String>,
     pub notes: Option<String>,
+    pub anterior_crop: Option<String>,
+    pub posterior_crop: Option<String>,
+    pub right_lateral_crop: Option<String>,
+    pub left_lateral_crop: Option<String>,
 }
 
 #[derive(Debug, Serialize, Deserialize, Type)]
@@ -75,6 +79,10 @@ pub struct CreateSessionDto {
     pub right_lateral: Option<String>,
     pub left_lateral: Option<String>,
     pub notes: Option<String>,
+    pub anterior_crop: Option<String>,
+    pub posterior_crop: Option<String>,
+    pub right_lateral_crop: Option<String>,
+    pub left_lateral_crop: Option<String>,
 }
 
 impl Session {
@@ -95,7 +103,11 @@ impl Session {
                 posterior, 
                 right_lateral, 
                 left_lateral, 
-                notes 
+                notes,
+                anterior_crop,
+                posterior_crop,
+                right_lateral_crop,
+                left_lateral_crop
             FROM sessions 
             WHERE client_id = ? 
             ORDER BY session_number DESC"#,
@@ -122,8 +134,9 @@ impl Session {
         let id = sqlx::query!(
             r#"INSERT INTO sessions (
                 client_id, datetime, session_number, height, weight, 
-                anterior, posterior, right_lateral, left_lateral, notes
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"#,
+                anterior, posterior, right_lateral, left_lateral, notes,
+                anterior_crop, posterior_crop, right_lateral_crop, left_lateral_crop
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"#,
             dto.client_id,
             datetime,
             next_session_number,
@@ -133,7 +146,11 @@ impl Session {
             dto.posterior,
             dto.right_lateral,
             dto.left_lateral,
-            dto.notes
+            dto.notes,
+            dto.anterior_crop,
+            dto.posterior_crop,
+            dto.right_lateral_crop,
+            dto.left_lateral_crop
         )
         .execute(pool)
         .await?

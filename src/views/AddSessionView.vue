@@ -5,6 +5,7 @@ import { commands, type CreateSessionDto, type Client, type Session } from "@/bi
 import { ArrowLeft, Camera } from "lucide-vue-next";
 import CameraModal from "@/components/CameraModal.vue";
 import RatioImage from "@/components/RatioImage.vue";
+import ImageCropper from "@/components/ImageCropper.vue";
 
 const route = useRoute();
 const router = useRouter();
@@ -19,6 +20,10 @@ const newSession = ref<CreateSessionDto>({
   right_lateral: null,
   left_lateral: null,
   notes: null,
+  anterior_crop: null,
+  posterior_crop: null,
+  right_lateral_crop: null,
+  left_lateral_crop: null,
 });
 
 const saving = ref(false);
@@ -27,12 +32,19 @@ const client = ref<Client | null>(null);
 const nextSessionNumber = ref(1);
 
 const showCamera = ref(false);
+const showCropper = ref(false);
 const activeImageType = ref<string | null>(null);
 const imagePreviews = ref<Record<string, string>>({
   anterior: "",
   posterior: "",
   right_lateral: "",
   left_lateral: "",
+});
+const cropData = ref<Record<string, { x: number, y: number, width: number } | null>>({
+  anterior: null,
+  posterior: null,
+  right_lateral: null,
+  left_lateral: null,
 });
 
 async function fetchClientAndSessionInfo() {
@@ -56,10 +68,24 @@ function openCamera(type: string) {
   showCamera.value = true;
 }
 
+function openCropper(type: string) {
+  if (imagePreviews.value[type]) {
+    activeImageType.value = type;
+    showCropper.value = true;
+  }
+}
+
 function handlePhotoTaken(photoData: string) {
   if (!activeImageType.value) return;
   // Only update the preview in memory
   imagePreviews.value[activeImageType.value] = photoData;
+  // Reset crop when new photo is taken
+  cropData.value[activeImageType.value] = null;
+}
+
+function handleCropSave(data: { x: number, y: number, width: number }) {
+  if (!activeImageType.value) return;
+  cropData.value[activeImageType.value] = data;
 }
 
 async function handleAddSession() {
@@ -82,6 +108,10 @@ async function handleAddSession() {
         
         if (result.status === "ok") {
           (newSession.value as any)[type] = result.data;
+          // Save crop data if exists
+          if (cropData.value[type]) {
+             (newSession.value as any)[`${type}_crop`] = JSON.stringify(cropData.value[type]);
+          }
         } else {
           throw new Error(`Failed to save ${type} image: ${result.error}`);
         }
@@ -147,22 +177,28 @@ onMounted(() => {
         <!-- Anterior -->
         <div>
           <label class="block text-sm font-medium text-gray-300 mb-2">Anterior</label>
-          <RatioImage :src="imagePreviews.anterior" empty-text="No photo" container-class="group w-full">
+          <RatioImage 
+            :src="imagePreviews.anterior" 
+            :crop="cropData.anterior"
+            empty-text="No photo" 
+            container-class="group w-full cursor-pointer"
+            @click="openCropper('anterior')"
+          >
             <template #overlay>
-              <div v-if="imagePreviews.anterior" class="absolute inset-0 bg-black bg-opacity-50 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+              <div v-if="imagePreviews.anterior" class="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity z-10">
                  <button 
                   type="button"
-                  @click="openCamera('anterior')"
-                  class="p-2 bg-blue-600 rounded-full hover:bg-blue-700 text-white mx-1"
+                  @click.stop="openCamera('anterior')"
+                  class="p-2 bg-gray-800 bg-opacity-75 rounded-full hover:bg-gray-700 text-white"
                   title="Retake Photo"
                 >
-                  <Camera class="h-6 w-6" />
+                  <Camera class="h-5 w-5" />
                 </button>
               </div>
               <div v-else class="absolute inset-0 flex items-center justify-center">
                  <button 
                   type="button"
-                  @click="openCamera('anterior')"
+                  @click.stop="openCamera('anterior')"
                   class="px-4 py-2 bg-gray-800 border border-gray-600 rounded-lg hover:bg-gray-700 text-gray-300 flex items-center gap-2"
                 >
                   <Camera class="h-5 w-5" /> Take Photo
@@ -175,22 +211,28 @@ onMounted(() => {
         <!-- Posterior -->
         <div>
           <label class="block text-sm font-medium text-gray-300 mb-2">Posterior</label>
-          <RatioImage :src="imagePreviews.posterior" empty-text="No photo" container-class="group w-full">
+          <RatioImage 
+            :src="imagePreviews.posterior" 
+            :crop="cropData.posterior"
+            empty-text="No photo" 
+            container-class="group w-full cursor-pointer"
+            @click="openCropper('posterior')"
+          >
             <template #overlay>
-              <div v-if="imagePreviews.posterior" class="absolute inset-0 bg-black bg-opacity-50 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+              <div v-if="imagePreviews.posterior" class="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity z-10">
                  <button 
                   type="button"
-                  @click="openCamera('posterior')"
-                  class="p-2 bg-blue-600 rounded-full hover:bg-blue-700 text-white mx-1"
+                  @click.stop="openCamera('posterior')"
+                  class="p-2 bg-gray-800 bg-opacity-75 rounded-full hover:bg-gray-700 text-white"
                   title="Retake Photo"
                 >
-                  <Camera class="h-6 w-6" />
+                  <Camera class="h-5 w-5" />
                 </button>
               </div>
               <div v-else class="absolute inset-0 flex items-center justify-center">
                  <button 
                   type="button"
-                  @click="openCamera('posterior')"
+                  @click.stop="openCamera('posterior')"
                   class="px-4 py-2 bg-gray-800 border border-gray-600 rounded-lg hover:bg-gray-700 text-gray-300 flex items-center gap-2"
                 >
                   <Camera class="h-5 w-5" /> Take Photo
@@ -203,22 +245,28 @@ onMounted(() => {
         <!-- Right Lateral -->
         <div>
           <label class="block text-sm font-medium text-gray-300 mb-2">Right Lateral</label>
-          <RatioImage :src="imagePreviews.right_lateral" empty-text="No photo" container-class="group w-full">
+          <RatioImage 
+            :src="imagePreviews.right_lateral" 
+            :crop="cropData.right_lateral"
+            empty-text="No photo" 
+            container-class="group w-full cursor-pointer"
+            @click="openCropper('right_lateral')"
+          >
             <template #overlay>
-              <div v-if="imagePreviews.right_lateral" class="absolute inset-0 bg-black bg-opacity-50 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+              <div v-if="imagePreviews.right_lateral" class="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity z-10">
                  <button 
                   type="button"
-                  @click="openCamera('right_lateral')"
-                  class="p-2 bg-blue-600 rounded-full hover:bg-blue-700 text-white mx-1"
+                  @click.stop="openCamera('right_lateral')"
+                  class="p-2 bg-gray-800 bg-opacity-75 rounded-full hover:bg-gray-700 text-white"
                   title="Retake Photo"
                 >
-                  <Camera class="h-6 w-6" />
+                  <Camera class="h-5 w-5" />
                 </button>
               </div>
               <div v-else class="absolute inset-0 flex items-center justify-center">
                  <button 
                   type="button"
-                  @click="openCamera('right_lateral')"
+                  @click.stop="openCamera('right_lateral')"
                   class="px-4 py-2 bg-gray-800 border border-gray-600 rounded-lg hover:bg-gray-700 text-gray-300 flex items-center gap-2"
                 >
                   <Camera class="h-5 w-5" /> Take Photo
@@ -231,22 +279,28 @@ onMounted(() => {
         <!-- Left Lateral -->
         <div>
           <label class="block text-sm font-medium text-gray-300 mb-2">Left Lateral</label>
-          <RatioImage :src="imagePreviews.left_lateral" empty-text="No photo" container-class="group w-full">
+          <RatioImage 
+            :src="imagePreviews.left_lateral" 
+            :crop="cropData.left_lateral"
+            empty-text="No photo" 
+            container-class="group w-full cursor-pointer"
+            @click="openCropper('left_lateral')"
+          >
             <template #overlay>
-              <div v-if="imagePreviews.left_lateral" class="absolute inset-0 bg-black bg-opacity-50 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+              <div v-if="imagePreviews.left_lateral" class="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity z-10">
                  <button 
                   type="button"
-                  @click="openCamera('left_lateral')"
-                  class="p-2 bg-blue-600 rounded-full hover:bg-blue-700 text-white mx-1"
+                  @click.stop="openCamera('left_lateral')"
+                  class="p-2 bg-gray-800 bg-opacity-75 rounded-full hover:bg-gray-700 text-white"
                   title="Retake Photo"
                 >
-                  <Camera class="h-6 w-6" />
+                  <Camera class="h-5 w-5" />
                 </button>
               </div>
               <div v-else class="absolute inset-0 flex items-center justify-center">
                  <button 
                   type="button"
-                  @click="openCamera('left_lateral')"
+                  @click.stop="openCamera('left_lateral')"
                   class="px-4 py-2 bg-gray-800 border border-gray-600 rounded-lg hover:bg-gray-700 text-gray-300 flex items-center gap-2"
                 >
                   <Camera class="h-5 w-5" /> Take Photo
@@ -293,6 +347,13 @@ onMounted(() => {
       :show="showCamera" 
       @close="showCamera = false"
       @photo-taken="handlePhotoTaken"
+    />
+
+    <ImageCropper 
+      :show="showCropper"
+      :image-src="activeImageType ? imagePreviews[activeImageType] : null"
+      @close="showCropper = false"
+      @save="handleCropSave"
     />
   </div>
 </template>

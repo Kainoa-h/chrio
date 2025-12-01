@@ -68,6 +68,20 @@ onMounted(async () => {
   }
 });
 
+function getParsedCrop(session: Session | null, type: string) {
+  if (!session) return null;
+  const key = `${type}_crop` as keyof Session;
+  const cropString = session[key];
+  if (typeof cropString === 'string') {
+    try {
+      return JSON.parse(cropString);
+    } catch (e) {
+      console.error("Failed to parse crop data", e);
+    }
+  }
+  return null;
+}
+
 function formatDate(dateString: string | undefined) {
   if (!dateString) return "-";
   const date = new Date(dateString);
@@ -129,6 +143,7 @@ const imageTypes = [
         <!-- Image 1 -->
         <RatioImage 
           :src="session1 && images[session1.id]?.[type.key] ? images[session1.id][type.key] : null" 
+          :crop="getParsedCrop(session1, type.key)"
           empty-text="No Image" 
           container-class="w-full" 
         />
@@ -136,6 +151,7 @@ const imageTypes = [
         <!-- Image 2 -->
         <RatioImage 
           :src="session2 && images[session2.id]?.[type.key] ? images[session2.id][type.key] : null" 
+          :crop="getParsedCrop(session2, type.key)"
           empty-text="No Image" 
           container-class="w-full" 
         />
