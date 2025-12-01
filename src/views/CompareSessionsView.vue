@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, onMounted, computed, watch } from "vue";
+import { ref, onMounted, computed } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { commands, type Session } from "@/bindings";
 import { ArrowLeft, ChevronsLeft, ChevronLeft, ChevronRight, ChevronsRight, ChevronsLeftRight } from "lucide-vue-next";

@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, onMounted } from "vue";
 import { useRoute, useRouter } from "vue-router";
-import { commands, type CreateSessionDto, type Client, type Session } from "@/bindings";
+import { commands, type CreateSessionDto, type Client} from "@/bindings";
 import { ArrowLeft, Camera } from "lucide-vue-next";
 import CameraModal from "@/components/CameraModal.vue";
 import RatioImage from "@/components/RatioImage.vue";

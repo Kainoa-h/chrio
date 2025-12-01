@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import { ref, onMounted, computed, watch } from 'vue';
-import { X, Check } from 'lucide-vue-next';
+import { ref, computed, watch } from 'vue';
+import { Check } from 'lucide-vue-next';
 import anteriorMask from '@/assets/alignment-mask-anterior.svg';
 import posteriorMask from '@/assets/alignment-mask-posterior.svg';
 import rightLateralMask from '@/assets/alignment-mask-right-lateral.svg';
@@ -72,14 +72,8 @@ function onMouseDown(e: MouseEvent, action: 'drag' | 'resize') {
 function onMouseMove(e: MouseEvent) {
   if (!imgRef.value || !containerRef.value) return;
   
-  const rect = containerRef.value.getBoundingClientRect();
-  const scaleX = 100 / rect.width; // 1px = ? %
-  const scaleY = 100 / rect.height;
-
   // Calculate image aspect ratio
   const imgAspect = imgRef.value.naturalWidth / imgRef.value.naturalHeight;
-  // Container aspect
-  const containerAspect = rect.width / rect.height;
   
   // Wait, object-fit: contain means image might not fill container.
   // We need the actual rendered dimensions of the image.
@@ -98,8 +92,6 @@ function onMouseMove(e: MouseEvent) {
     let newX = startCropX.value + deltaX_pct;
     let newY = startCropY.value + deltaY_pct;
 
-    // Constraints
-    const cropHeight_pct = (crop.value.width * imgRect.width * 1.5) / imgRect.height * 100 / crop.value.width * crop.value.width; 
     // This math is getting messy. Let's simplify:
     // crop.width is % of image width.
     // crop.height (pixels) = (crop.width_pct / 100 * imgWidth) * 1.5
@@ -142,24 +134,6 @@ function onMouseUp() {
   window.removeEventListener('mousemove', onMouseMove);
   window.removeEventListener('mouseup', onMouseUp);
 }
-
-const cropStyle = computed(() => {
-  if (!imgRef.value) return {};
-  // We need to know image aspect ratio to calculate height percentage
-  // Initial render might be tricky.
-  // Let's use a simpler approach: css variable or js update on load.
-  return {
-    left: `${crop.value.x}%`,
-    top: `${crop.value.y}%`,
-    width: `${crop.value.width}%`,
-    // Height is dynamic based on aspect ratio
-    // We set height via aspect-ratio in CSS if possible, or calc
-    // But 'aspect-ratio' is box, not percentage of parent.
-    // We need height as % of parent height.
-    // height = width_px * 1.5
-    // height% = width% * (imgWidth/imgHeight) * 1.5
-  };
-});
 
 // We need aspect ratio for proper rendering of the box height in %
 const imgAspectRatio = ref(1);

@@ -3,7 +3,7 @@ import { ref, computed } from 'vue';
 import { X, ChevronsLeftRight } from 'lucide-vue-next';
 import RatioImage from './RatioImage.vue';
 
-const props = defineProps<{
+defineProps<{
   show: boolean;
   title: string;
   image1Src: string | null;
@@ -14,7 +14,7 @@ const props = defineProps<{
   label2?: string;
 }>();
 
-const emit = defineEmits<{
+defineEmits<{
   (e: 'close'): void;
 }>();
 
