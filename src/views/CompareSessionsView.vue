@@ -3,6 +3,7 @@ import { ref, onMounted } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { commands, type Session } from "@/bindings";
 import { ArrowLeft } from "lucide-vue-next";
+import RatioImage from "@/components/RatioImage.vue";
 
 const route = useRoute();
 const router = useRouter();
@@ -126,24 +127,18 @@ const imageTypes = [
         </div>
 
         <!-- Image 1 -->
-        <div class="bg-gray-950 p-2 border border-gray-800 flex items-center justify-center h-64 rounded-lg">
-          <img 
-            v-if="session1 && images[session1.id]?.[type.key]" 
-            :src="images[session1.id][type.key]" 
-            class="max-w-full max-h-full object-contain"
-          />
-          <span v-else class="text-gray-500">No Image</span>
-        </div>
+        <RatioImage 
+          :src="session1 && images[session1.id]?.[type.key] ? images[session1.id][type.key] : null" 
+          empty-text="No Image" 
+          container-class="w-full" 
+        />
 
         <!-- Image 2 -->
-        <div class="bg-gray-950 p-2 border border-gray-800 flex items-center justify-center h-64 rounded-lg">
-          <img 
-            v-if="session2 && images[session2.id]?.[type.key]" 
-            :src="images[session2.id][type.key]" 
-            class="max-w-full max-h-full object-contain"
-          />
-          <span v-else class="text-gray-500">No Image</span>
-        </div>
+        <RatioImage 
+          :src="session2 && images[session2.id]?.[type.key] ? images[session2.id][type.key] : null" 
+          empty-text="No Image" 
+          container-class="w-full" 
+        />
       </template>
 
       <!-- Data Comparison -->

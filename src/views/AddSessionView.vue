@@ -2,8 +2,9 @@
 import { ref, onMounted } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { commands, type CreateSessionDto, type Client, type Session } from "@/bindings";
-import { ArrowLeft, Camera, RefreshCw } from "lucide-vue-next";
+import { ArrowLeft, Camera } from "lucide-vue-next";
 import CameraModal from "@/components/CameraModal.vue";
+import RatioImage from "@/components/RatioImage.vue";
 
 const route = useRoute();
 const router = useRouter();
@@ -148,142 +149,113 @@ onMounted(() => {
         <!-- Anterior -->
         <div>
           <label class="block text-sm font-medium text-gray-300 mb-2">Anterior</label>
-          <div class="border border-gray-700 rounded-lg bg-gray-900 h-48 flex items-center justify-center relative overflow-hidden group">
-            <img 
-              v-if="imagePreviews.anterior" 
-              :src="imagePreviews.anterior" 
-              class="w-full h-full object-cover"
-            />
-            <div v-else class="text-gray-500 flex flex-col items-center">
-              <span class="text-sm mb-2">No photo</span>
-            </div>
-            
-            <div class="absolute inset-0 bg-black bg-opacity-50 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-               <button 
-                type="button"
-                @click="openCamera('anterior')"
-                class="p-2 bg-blue-600 rounded-full hover:bg-blue-700 text-white mx-1"
-                title="Take Photo"
-              >
-                <Camera class="h-6 w-6" />
-              </button>
-            </div>
-            <!-- Show camera button always if no photo -->
-            <div v-if="!imagePreviews.anterior" class="absolute inset-0 flex items-center justify-center">
-               <button 
-                type="button"
-                @click="openCamera('anterior')"
-                class="px-4 py-2 bg-gray-800 border border-gray-600 rounded-lg hover:bg-gray-700 text-gray-300 flex items-center gap-2"
-              >
-                <Camera class="h-5 w-5" /> Take Photo
-              </button>
-            </div>
-          </div>
+          <RatioImage :src="imagePreviews.anterior" empty-text="No photo" container-class="group w-full">
+            <template #overlay>
+              <div v-if="imagePreviews.anterior" class="absolute inset-0 bg-black bg-opacity-50 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                 <button 
+                  type="button"
+                  @click="openCamera('anterior')"
+                  class="p-2 bg-blue-600 rounded-full hover:bg-blue-700 text-white mx-1"
+                  title="Retake Photo"
+                >
+                  <Camera class="h-6 w-6" />
+                </button>
+              </div>
+              <div v-else class="absolute inset-0 flex items-center justify-center">
+                 <button 
+                  type="button"
+                  @click="openCamera('anterior')"
+                  class="px-4 py-2 bg-gray-800 border border-gray-600 rounded-lg hover:bg-gray-700 text-gray-300 flex items-center gap-2"
+                >
+                  <Camera class="h-5 w-5" /> Take Photo
+                </button>
+              </div>
+            </template>
+          </RatioImage>
         </div>
 
         <!-- Posterior -->
         <div>
           <label class="block text-sm font-medium text-gray-300 mb-2">Posterior</label>
-          <div class="border border-gray-700 rounded-lg bg-gray-900 h-48 flex items-center justify-center relative overflow-hidden group">
-            <img 
-              v-if="imagePreviews.posterior" 
-              :src="imagePreviews.posterior" 
-              class="w-full h-full object-cover"
-            />
-            <div v-else class="text-gray-500 flex flex-col items-center">
-              <span class="text-sm mb-2">No photo</span>
-            </div>
-            
-            <div class="absolute inset-0 bg-black bg-opacity-50 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-               <button 
-                type="button"
-                @click="openCamera('posterior')"
-                class="p-2 bg-blue-600 rounded-full hover:bg-blue-700 text-white mx-1"
-                title="Take Photo"
-              >
-                <Camera class="h-6 w-6" />
-              </button>
-            </div>
-             <div v-if="!imagePreviews.posterior" class="absolute inset-0 flex items-center justify-center">
-               <button 
-                type="button"
-                @click="openCamera('posterior')"
-                class="px-4 py-2 bg-gray-800 border border-gray-600 rounded-lg hover:bg-gray-700 text-gray-300 flex items-center gap-2"
-              >
-                <Camera class="h-5 w-5" /> Take Photo
-              </button>
-            </div>
-          </div>
+          <RatioImage :src="imagePreviews.posterior" empty-text="No photo" container-class="group w-full">
+            <template #overlay>
+              <div v-if="imagePreviews.posterior" class="absolute inset-0 bg-black bg-opacity-50 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                 <button 
+                  type="button"
+                  @click="openCamera('posterior')"
+                  class="p-2 bg-blue-600 rounded-full hover:bg-blue-700 text-white mx-1"
+                  title="Retake Photo"
+                >
+                  <Camera class="h-6 w-6" />
+                </button>
+              </div>
+              <div v-else class="absolute inset-0 flex items-center justify-center">
+                 <button 
+                  type="button"
+                  @click="openCamera('posterior')"
+                  class="px-4 py-2 bg-gray-800 border border-gray-600 rounded-lg hover:bg-gray-700 text-gray-300 flex items-center gap-2"
+                >
+                  <Camera class="h-5 w-5" /> Take Photo
+                </button>
+              </div>
+            </template>
+          </RatioImage>
         </div>
 
         <!-- Right Lateral -->
         <div>
           <label class="block text-sm font-medium text-gray-300 mb-2">Right Lateral</label>
-          <div class="border border-gray-700 rounded-lg bg-gray-900 h-48 flex items-center justify-center relative overflow-hidden group">
-            <img 
-              v-if="imagePreviews.right_lateral" 
-              :src="imagePreviews.right_lateral" 
-              class="w-full h-full object-cover"
-            />
-            <div v-else class="text-gray-500 flex flex-col items-center">
-              <span class="text-sm mb-2">No photo</span>
-            </div>
-            
-            <div class="absolute inset-0 bg-black bg-opacity-50 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-               <button 
-                type="button"
-                @click="openCamera('right_lateral')"
-                class="p-2 bg-blue-600 rounded-full hover:bg-blue-700 text-white mx-1"
-                title="Take Photo"
-              >
-                <Camera class="h-6 w-6" />
-              </button>
-            </div>
-             <div v-if="!imagePreviews.right_lateral" class="absolute inset-0 flex items-center justify-center">
-               <button 
-                type="button"
-                @click="openCamera('right_lateral')"
-                class="px-4 py-2 bg-gray-800 border border-gray-600 rounded-lg hover:bg-gray-700 text-gray-300 flex items-center gap-2"
-              >
-                <Camera class="h-5 w-5" /> Take Photo
-              </button>
-            </div>
-          </div>
+          <RatioImage :src="imagePreviews.right_lateral" empty-text="No photo" container-class="group w-full">
+            <template #overlay>
+              <div v-if="imagePreviews.right_lateral" class="absolute inset-0 bg-black bg-opacity-50 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                 <button 
+                  type="button"
+                  @click="openCamera('right_lateral')"
+                  class="p-2 bg-blue-600 rounded-full hover:bg-blue-700 text-white mx-1"
+                  title="Retake Photo"
+                >
+                  <Camera class="h-6 w-6" />
+                </button>
+              </div>
+              <div v-else class="absolute inset-0 flex items-center justify-center">
+                 <button 
+                  type="button"
+                  @click="openCamera('right_lateral')"
+                  class="px-4 py-2 bg-gray-800 border border-gray-600 rounded-lg hover:bg-gray-700 text-gray-300 flex items-center gap-2"
+                >
+                  <Camera class="h-5 w-5" /> Take Photo
+                </button>
+              </div>
+            </template>
+          </RatioImage>
         </div>
 
         <!-- Left Lateral -->
         <div>
           <label class="block text-sm font-medium text-gray-300 mb-2">Left Lateral</label>
-          <div class="border border-gray-700 rounded-lg bg-gray-900 h-48 flex items-center justify-center relative overflow-hidden group">
-            <img 
-              v-if="imagePreviews.left_lateral" 
-              :src="imagePreviews.left_lateral" 
-              class="w-full h-full object-cover"
-            />
-            <div v-else class="text-gray-500 flex flex-col items-center">
-              <span class="text-sm mb-2">No photo</span>
-            </div>
-            
-            <div class="absolute inset-0 bg-black bg-opacity-50 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-               <button 
-                type="button"
-                @click="openCamera('left_lateral')"
-                class="p-2 bg-blue-600 rounded-full hover:bg-blue-700 text-white mx-1"
-                title="Take Photo"
-              >
-                <Camera class="h-6 w-6" />
-              </button>
-            </div>
-             <div v-if="!imagePreviews.left_lateral" class="absolute inset-0 flex items-center justify-center">
-               <button 
-                type="button"
-                @click="openCamera('left_lateral')"
-                class="px-4 py-2 bg-gray-800 border border-gray-600 rounded-lg hover:bg-gray-700 text-gray-300 flex items-center gap-2"
-              >
-                <Camera class="h-5 w-5" /> Take Photo
-              </button>
-            </div>
-          </div>
+          <RatioImage :src="imagePreviews.left_lateral" empty-text="No photo" container-class="group w-full">
+            <template #overlay>
+              <div v-if="imagePreviews.left_lateral" class="absolute inset-0 bg-black bg-opacity-50 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                 <button 
+                  type="button"
+                  @click="openCamera('left_lateral')"
+                  class="p-2 bg-blue-600 rounded-full hover:bg-blue-700 text-white mx-1"
+                  title="Retake Photo"
+                >
+                  <Camera class="h-6 w-6" />
+                </button>
+              </div>
+              <div v-else class="absolute inset-0 flex items-center justify-center">
+                 <button 
+                  type="button"
+                  @click="openCamera('left_lateral')"
+                  class="px-4 py-2 bg-gray-800 border border-gray-600 rounded-lg hover:bg-gray-700 text-gray-300 flex items-center gap-2"
+                >
+                  <Camera class="h-5 w-5" /> Take Photo
+                </button>
+              </div>
+            </template>
+          </RatioImage>
         </div>
       </div>
 
