@@ -36,6 +36,14 @@ async addSession(session: CreateSessionDto) : Promise<Result<number, string>> {
     if(e instanceof Error) throw e;
     else return { status: "error", error: e  as any };
 }
+},
+async saveImage(clientId: number, clientFirstname: string, sessionNo: number, imageType: string, base64Image: string) : Promise<Result<string, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("save_image", { clientId, clientFirstname, sessionNo, imageType, base64Image }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
 }
 }
 

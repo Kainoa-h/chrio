@@ -12,7 +12,8 @@ pub fn run() {
             commands::get_clients,
             commands::add_client,
             commands::get_client_sessions,
-            commands::add_session
+            commands::add_session,
+            commands::save_image
         ]);
 
     #[cfg(debug_assertions)]

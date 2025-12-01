@@ -20,6 +20,7 @@
         "@tailwindcss/vite": "^4.0.0",
         "@tauri-apps/cli": "^2",
         "@types/node": "^24.10.1",
+        "@types/w3c-image-capture": "^1.0.11",
         "@vitejs/plugin-vue": "^5.2.1",
         "autoprefixer": "^10.4.22",
         "postcss": "^8.5.6",
@@ -218,6 +219,10 @@
     "@types/estree": ["@types/estree@1.0.8", "", {}, "sha512-dWHzHa2WqEXI/O1E9OjrocMTKJl2mSrEolh1Iomrv6U+JuNwaHXsXx9bLu5gG7BUWFIN0skIQJQ/L1rIex4X6w=="],
 
     "@types/node": ["@types/node@24.10.1", "", { "dependencies": { "undici-types": "~7.16.0" } }, "sha512-GNWcUTRBgIRJD5zj+Tq0fKOJ5XZajIiBroOF0yvj2bSU1WvNdYS/dn9UxwsujGW4JX06dnHyjV2y9rRaybH0iQ=="],
+
+    "@types/w3c-image-capture": ["@types/w3c-image-capture@1.0.11", "", { "dependencies": { "@types/webrtc": "*" } }, "sha512-g3BsmP29VsaaB9M2Hp0IJ8W/WatH0NzM6GV6Awdaqex5wjCcScdDa58ctX0al+ixQLDfIxplu+xOaLNA/u66bg=="],
+
+    "@types/webrtc": ["@types/webrtc@0.0.47", "", {}, "sha512-l4G2skp32Q7ENiocokNhIHG6dKfws9ALJ04zW+ZZ97LMe6G+yqs/E8qsJLZJELGcdUDgEWvi2jg7KSP5TpJxeg=="],
 
     "@vitejs/plugin-vue": ["@vitejs/plugin-vue@5.2.4", "", { "peerDependencies": { "vite": "^5.0.0 || ^6.0.0", "vue": "^3.2.25" } }, "sha512-7Yx/SXSOcQq5HiiV3orevHUFn+pmMB4cgbEkDYgnkUWb0WfeQ/wa2yFv6D5ICiCQOVpjA7vYDXrC7AGO8yjDHA=="],
 

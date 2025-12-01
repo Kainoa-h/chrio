@@ -1,8 +1,9 @@
 <script setup lang="ts">
-import { ref } from "vue";
+import { ref, onMounted } from "vue";
 import { useRoute, useRouter } from "vue-router";
-import { commands, type CreateSessionDto } from "@/bindings";
-import { ArrowLeft } from "lucide-vue-next";
+import { commands, type CreateSessionDto, type Client, type Session } from "@/bindings";
+import { ArrowLeft, Camera } from "lucide-vue-next";
+import CameraModal from "@/components/CameraModal.vue";
 
 const route = useRoute();
 const router = useRouter();
@@ -21,6 +22,60 @@ const newSession = ref<CreateSessionDto>({
 
 const saving = ref(false);
 const error = ref<string | null>(null);
+const client = ref<Client | null>(null);
+const nextSessionNumber = ref(1);
+
+const showCamera = ref(false);
+const activeImageType = ref<string | null>(null);
+
+async function fetchClientAndSessionInfo() {
+  try {
+    const clientsResult = await commands.getClients();
+    if (clientsResult.status === "ok") {
+      client.value = clientsResult.data.find(c => c.id === clientId) || null;
+    }
+
+    const sessionsResult = await commands.getClientSessions(clientId);
+    if (sessionsResult.status === "ok") {
+        const sessions = sessionsResult.data;
+        const maxSession = sessions.reduce((max, s) => (s.session_number > max ? s.session_number : max), 0);
+        nextSessionNumber.value = maxSession + 1;
+    }
+  } catch (e) {
+    console.error("Failed to fetch client info", e);
+  }
+}
+
+function openCamera(type: string) {
+  activeImageType.value = type;
+  showCamera.value = true;
+}
+
+async function handlePhotoTaken(photoData: string) {
+  if (!activeImageType.value || !client.value) return;
+
+  try {
+    const result = await commands.saveImage(
+      clientId,
+      client.value.firstname,
+      nextSessionNumber.value,
+      activeImageType.value,
+      photoData
+    );
+
+    if (result.status === "ok") {
+      // Update the specific field with the file path
+      if (activeImageType.value === 'anterior') newSession.value.anterior = result.data;
+      if (activeImageType.value === 'posterior') newSession.value.posterior = result.data;
+      if (activeImageType.value === 'right_lateral') newSession.value.right_lateral = result.data;
+      if (activeImageType.value === 'left_lateral') newSession.value.left_lateral = result.data;
+    } else {
+      error.value = "Failed to save image: " + result.error;
+    }
+  } catch (e: any) {
+    error.value = "Error saving image: " + e.message;
+  }
+}
 
 async function handleAddSession() {
   saving.value = true;
@@ -38,6 +93,10 @@ async function handleAddSession() {
     saving.value = false;
   }
 }
+
+onMounted(() => {
+  fetchClientAndSessionInfo();
+});
 </script>
 
 <template>
@@ -49,7 +108,7 @@ async function handleAddSession() {
       >
         <ArrowLeft class="h-6 w-6 text-gray-600 dark:text-gray-300" />
       </button>
-      <h1 class="text-3xl font-bold text-gray-900 dark:text-white">Add New Session for Client {{ clientId }}</h1>
+      <h1 class="text-3xl font-bold text-gray-900 dark:text-white">Add New Session for {{ client?.firstname || 'Client' }}</h1>
     </div>
 
     <form @submit.prevent="handleAddSession" class="bg-gray-950 p-6 rounded-md shadow-sm space-y-4 border border-gray-700">
@@ -76,41 +135,90 @@ async function handleAddSession() {
         </div>
       </div>
 
-      <div>
-        <label for="anterior" class="block text-sm font-medium text-gray-300 mb-1">Anterior Image URL</label>
-        <input 
-          id="anterior"
-          v-model="newSession.anterior" 
-          type="text"
-          class="w-full rounded-lg border border-gray-700 bg-gray-900 px-3 py-2 focus:ring-1 focus:ring-blue-500 focus:border-blue-500 text-gray-200"
-        />
-      </div>
-      <div>
-        <label for="posterior" class="block text-sm font-medium text-gray-300 mb-1">Posterior Image URL</label>
-        <input 
-          id="posterior"
-          v-model="newSession.posterior" 
-          type="text"
-          class="w-full rounded-lg border border-gray-700 bg-gray-900 px-3 py-2 focus:ring-1 focus:ring-blue-500 focus:border-blue-500 text-gray-200"
-        />
-      </div>
-      <div>
-        <label for="right_lateral" class="block text-sm font-medium text-gray-300 mb-1">Right Lateral Image URL</label>
-        <input 
-          id="right_lateral"
-          v-model="newSession.right_lateral" 
-          type="text"
-          class="w-full rounded-lg border border-gray-700 bg-gray-900 px-3 py-2 focus:ring-1 focus:ring-blue-500 focus:border-blue-500 text-gray-200"
-        />
-      </div>
-      <div>
-        <label for="left_lateral" class="block text-sm font-medium text-gray-300 mb-1">Left Lateral Image URL</label>
-        <input 
-          id="left_lateral"
-          v-model="newSession.left_lateral" 
-          type="text"
-          class="w-full rounded-lg border border-gray-700 bg-gray-900 px-3 py-2 focus:ring-1 focus:ring-blue-500 focus:border-blue-500 text-gray-200"
-        />
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <!-- Anterior -->
+        <div>
+          <label class="block text-sm font-medium text-gray-300 mb-2">Anterior</label>
+          <div class="flex gap-2">
+             <input 
+              v-model="newSession.anterior" 
+              type="text"
+              placeholder="Image Path"
+              class="flex-1 rounded-lg border border-gray-700 bg-gray-900 px-3 py-2 text-gray-200 text-sm"
+              readonly
+            />
+            <button 
+              type="button"
+              @click="openCamera('anterior')"
+              class="p-2 bg-gray-800 rounded-lg border border-gray-700 hover:bg-gray-700 text-gray-300"
+            >
+              <Camera class="h-5 w-5" />
+            </button>
+          </div>
+        </div>
+
+        <!-- Posterior -->
+        <div>
+          <label class="block text-sm font-medium text-gray-300 mb-2">Posterior</label>
+          <div class="flex gap-2">
+             <input 
+              v-model="newSession.posterior" 
+              type="text"
+              placeholder="Image Path"
+              class="flex-1 rounded-lg border border-gray-700 bg-gray-900 px-3 py-2 text-gray-200 text-sm"
+              readonly
+            />
+            <button 
+              type="button"
+              @click="openCamera('posterior')"
+              class="p-2 bg-gray-800 rounded-lg border border-gray-700 hover:bg-gray-700 text-gray-300"
+            >
+              <Camera class="h-5 w-5" />
+            </button>
+          </div>
+        </div>
+
+        <!-- Right Lateral -->
+        <div>
+          <label class="block text-sm font-medium text-gray-300 mb-2">Right Lateral</label>
+          <div class="flex gap-2">
+             <input 
+              v-model="newSession.right_lateral" 
+              type="text"
+              placeholder="Image Path"
+              class="flex-1 rounded-lg border border-gray-700 bg-gray-900 px-3 py-2 text-gray-200 text-sm"
+              readonly
+            />
+            <button 
+              type="button"
+              @click="openCamera('right_lateral')"
+              class="p-2 bg-gray-800 rounded-lg border border-gray-700 hover:bg-gray-700 text-gray-300"
+            >
+              <Camera class="h-5 w-5" />
+            </button>
+          </div>
+        </div>
+
+        <!-- Left Lateral -->
+        <div>
+          <label class="block text-sm font-medium text-gray-300 mb-2">Left Lateral</label>
+          <div class="flex gap-2">
+             <input 
+              v-model="newSession.left_lateral" 
+              type="text"
+              placeholder="Image Path"
+              class="flex-1 rounded-lg border border-gray-700 bg-gray-900 px-3 py-2 text-gray-200 text-sm"
+              readonly
+            />
+            <button 
+              type="button"
+              @click="openCamera('left_lateral')"
+              class="p-2 bg-gray-800 rounded-lg border border-gray-700 hover:bg-gray-700 text-gray-300"
+            >
+              <Camera class="h-5 w-5" />
+            </button>
+          </div>
+        </div>
       </div>
 
       <div>
@@ -144,5 +252,11 @@ async function handleAddSession() {
         </button>
       </div>
     </form>
+
+    <CameraModal 
+      :show="showCamera" 
+      @close="showCamera = false"
+      @photo-taken="handlePhotoTaken"
+    />
   </div>
 </template>
