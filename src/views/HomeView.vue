@@ -1,9 +1,9 @@
 <script setup lang="ts">
 import { ref, onMounted } from "vue";
-import { useClientStore } from "../stores/client";
+import { useClientStore } from "@/stores/client";
 import { storeToRefs } from "pinia";
-import ClientTable from "../components/ClientTable.vue";
-import AddClientModal from "../components/AddClientModal.vue";
+import ClientTable from "@/components/ClientTable.vue";
+import AddClientModal from "@/components/AddClientModal.vue";
 
 const clientStore = useClientStore();
 const { clients } = storeToRefs(clientStore);

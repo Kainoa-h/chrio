@@ -1,6 +1,6 @@
 import { ref } from 'vue'
 import { defineStore } from 'pinia'
-import { commands, type Client, type CreateClientDto } from '../bindings'
+import { commands, type Client, type CreateClientDto } from '@/bindings'
 
 export const useClientStore = defineStore('client', () => {
   const clients = ref<Client[]>([])
