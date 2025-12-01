@@ -80,3 +80,11 @@ pub async fn read_image_base64(path: String) -> Result<String, String> {
     let base64_data = general_purpose::STANDARD.encode(image_data);
     Ok(format!("data:image/jpeg;base64,{}", base64_data))
 }
+
+#[tauri::command]
+#[specta]
+pub async fn get_next_session_number(db: State<'_, DbState>, client_id: i32) -> Result<i32, String> {
+    Session::get_next_session_number(&*db, client_id)
+        .await
+        .map_err(|e| e.to_string())
+}

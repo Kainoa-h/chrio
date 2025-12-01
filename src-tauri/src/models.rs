@@ -141,4 +141,23 @@ impl Session {
 
         Ok(id as i32)
     }
+
+    pub async fn get_next_session_number(
+        pool: &SqlitePool,
+        client_id: i32,
+    ) -> Result<i32, sqlx::Error> {
+        let next_session_number: i32 = sqlx::query!(
+            "SELECT MAX(session_number) as max_session FROM sessions WHERE client_id = ?",
+            client_id
+        )
+        .fetch_one(pool)
+        .await?
+        .max_session
+        .map(|n| n + 1)
+        .unwrap_or(1)
+        .try_into()
+        .expect("how tf does a client have sm sessions");
+
+        Ok(next_session_number)
+    }
 }

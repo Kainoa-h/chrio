@@ -42,11 +42,9 @@ async function fetchClientAndSessionInfo() {
       client.value = clientsResult.data.find(c => c.id === clientId) || null;
     }
 
-    const sessionsResult = await commands.getClientSessions(clientId);
-    if (sessionsResult.status === "ok") {
-        const sessions = sessionsResult.data;
-        const maxSession = sessions.reduce((max, s) => (s.session_number > max ? s.session_number : max), 0);
-        nextSessionNumber.value = maxSession + 1;
+    const nextSessionResult = await commands.getNextSessionNumber(clientId);
+    if (nextSessionResult.status === "ok") {
+        nextSessionNumber.value = nextSessionResult.data;
     }
   } catch (e) {
     console.error("Failed to fetch client info", e);
