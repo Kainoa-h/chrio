@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "INSERT INTO sessions (\n                client_id, datetime, session_number, height, weight, \n                anterior, posterior, right_lateral, left_lateral, notes,\n                anterior_crop, posterior_crop, right_lateral_crop, left_lateral_crop\n            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 14
+    },
+    "nullable": []
+  },
+  "hash": "8a0c3d1af4c8e24176e7cdcb545d51e9a6ad29208477892db219e23982406bac"
+}

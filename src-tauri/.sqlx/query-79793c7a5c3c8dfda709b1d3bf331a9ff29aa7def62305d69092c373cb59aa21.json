@@ -1,0 +1,20 @@
+{
+  "db_name": "SQLite",
+  "query": "SELECT MAX(session_number) as max_session FROM sessions WHERE client_id = ?",
+  "describe": {
+    "columns": [
+      {
+        "name": "max_session",
+        "ordinal": 0,
+        "type_info": "Integer"
+      }
+    ],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": [
+      true
+    ]
+  },
+  "hash": "79793c7a5c3c8dfda709b1d3bf331a9ff29aa7def62305d69092c373cb59aa21"
+}

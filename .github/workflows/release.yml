@@ -47,6 +47,7 @@ jobs:
         uses: tauri-apps/tauri-action@v0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          SQLX_OFFLINE: true
         with:
           tagName: ${{ github.ref_name }}
           releaseName: 'chrio v__VERSION__'

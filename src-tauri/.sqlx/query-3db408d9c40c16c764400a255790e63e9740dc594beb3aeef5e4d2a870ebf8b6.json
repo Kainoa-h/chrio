@@ -1,0 +1,50 @@
+{
+  "db_name": "SQLite",
+  "query": "SELECT id as \"id: i32\", firstname, lastname, dob, sex, registration_date FROM clients ORDER BY registration_date DESC",
+  "describe": {
+    "columns": [
+      {
+        "name": "id: i32",
+        "ordinal": 0,
+        "type_info": "Integer"
+      },
+      {
+        "name": "firstname",
+        "ordinal": 1,
+        "type_info": "Text"
+      },
+      {
+        "name": "lastname",
+        "ordinal": 2,
+        "type_info": "Text"
+      },
+      {
+        "name": "dob",
+        "ordinal": 3,
+        "type_info": "Text"
+      },
+      {
+        "name": "sex",
+        "ordinal": 4,
+        "type_info": "Text"
+      },
+      {
+        "name": "registration_date",
+        "ordinal": 5,
+        "type_info": "Text"
+      }
+    ],
+    "parameters": {
+      "Right": 0
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false,
+      false,
+      false
+    ]
+  },
+  "hash": "3db408d9c40c16c764400a255790e63e9740dc594beb3aeef5e4d2a870ebf8b6"
+}

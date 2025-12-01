@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "UPDATE sessions SET left_lateral_crop = ? WHERE id = ?",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 2
+    },
+    "nullable": []
+  },
+  "hash": "1dfcb743d6d7a22ecb2865142f6d1bd3945d73aeff7961d13baf3c2541ecaec5"
+}
