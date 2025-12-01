@@ -17,6 +17,7 @@ import {
 import type { Client } from "@/bindings";
 import { h, ref } from "vue";
 import { Search } from "lucide-vue-next";
+import { RouterLink } from "vue-router";
 
 const props = defineProps<{
   clients: Client[];
@@ -59,7 +60,10 @@ const columns = [
   columnHelper.display({
     id: "actions",
     header: "Actions",
-    cell: () => h('a', { href: '#', class: 'font-medium text-blue-600 dark:text-blue-500 hover:underline' }, 'Edit'),
+    cell: (info) => h(RouterLink, { 
+      to: { name: 'client-sessions', params: { id: info.row.original.id } },
+      class: 'font-medium text-blue-600 dark:text-blue-500 hover:underline' 
+    }, () => 'Sessions'),
   }),
 ];
 
