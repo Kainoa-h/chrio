@@ -5,6 +5,7 @@ import { X, Check } from 'lucide-vue-next';
 const props = defineProps<{
   show: boolean;
   imageSrc: string | null;
+  initialCrop?: { x: number, y: number, width: number } | null;
 }>();
 
 const emit = defineEmits<{
@@ -162,10 +163,18 @@ function save() {
   emit('close');
 }
 
-watch(() => props.show, () => {
-  // Reset or init crop?
-  // Maybe center it?
-  crop.value = { x: 10, y: 10, width: 50 };
+watch(() => props.show, (newVal) => {
+  if (newVal) {
+    if (props.initialCrop) {
+      crop.value = {
+        x: props.initialCrop.x * 100,
+        y: props.initialCrop.y * 100,
+        width: props.initialCrop.width * 100
+      };
+    } else {
+      crop.value = { x: 10, y: 10, width: 50 };
+    }
+  }
 });
 </script>
 

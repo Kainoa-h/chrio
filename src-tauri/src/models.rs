@@ -177,4 +177,36 @@ impl Session {
 
         Ok(next_session_number)
     }
+
+    pub async fn update_crop(
+        pool: &SqlitePool,
+        session_id: i32,
+        image_type: &str,
+        crop_data: String,
+    ) -> Result<(), sqlx::Error> {
+        match image_type {
+            "anterior" => {
+                sqlx::query!("UPDATE sessions SET anterior_crop = ? WHERE id = ?", crop_data, session_id)
+                    .execute(pool)
+                    .await?;
+            }
+            "posterior" => {
+                sqlx::query!("UPDATE sessions SET posterior_crop = ? WHERE id = ?", crop_data, session_id)
+                    .execute(pool)
+                    .await?;
+            }
+            "right_lateral" => {
+                sqlx::query!("UPDATE sessions SET right_lateral_crop = ? WHERE id = ?", crop_data, session_id)
+                    .execute(pool)
+                    .await?;
+            }
+            "left_lateral" => {
+                sqlx::query!("UPDATE sessions SET left_lateral_crop = ? WHERE id = ?", crop_data, session_id)
+                    .execute(pool)
+                    .await?;
+            }
+            _ => return Err(sqlx::Error::RowNotFound),
+        }
+        Ok(())
+    }
 }

@@ -15,7 +15,8 @@ pub fn run() {
             commands::add_session,
             commands::save_image,
             commands::read_image_base64,
-            commands::get_next_session_number
+            commands::get_next_session_number,
+            commands::update_session_crop
         ]);
 
     #[cfg(debug_assertions)]

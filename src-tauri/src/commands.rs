@@ -88,3 +88,16 @@ pub async fn get_next_session_number(db: State<'_, DbState>, client_id: i32) -> 
         .await
         .map_err(|e| e.to_string())
 }
+
+#[tauri::command]
+#[specta]
+pub async fn update_session_crop(
+    db: State<'_, DbState>,
+    session_id: i32,
+    image_type: String,
+    crop_data: String,
+) -> Result<(), String> {
+    Session::update_crop(&*db, session_id, &image_type, crop_data)
+        .await
+        .map_err(|e| e.to_string())
+}

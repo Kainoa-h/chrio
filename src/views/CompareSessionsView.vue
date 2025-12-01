@@ -1,9 +1,10 @@
 <script setup lang="ts">
-import { ref, onMounted, computed, watch } from "vue";
+import { ref, onMounted, computed } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { commands, type Session } from "@/bindings";
 import { ArrowLeft, ChevronsLeft, ChevronLeft, ChevronRight, ChevronsRight } from "lucide-vue-next";
 import RatioImage from "@/components/RatioImage.vue";
+import ImageCropper from "@/components/ImageCropper.vue";
 
 const route = useRoute();
 const router = useRouter();
@@ -19,6 +20,10 @@ const error = ref<string | null>(null);
 
 // Store base64 images: images[sessionId][type] = base64String
 const images = ref<Record<number, Record<string, string>>>({});
+
+const showCropper = ref(false);
+const activeCropSessionId = ref<number | null>(null);
+const activeCropType = ref<string | null>(null);
 
 // Available sessions for the left side (must be older than session 2)
 const availableLeftSessions = computed(() => {
@@ -149,6 +154,43 @@ function formatDate(dateString: string | undefined) {
   }).format(date);
 }
 
+function openCropper(sessionId: number, type: string) {
+  if (images.value[sessionId]?.[type]) {
+    activeCropSessionId.value = sessionId;
+    activeCropType.value = type;
+    showCropper.value = true;
+  }
+}
+
+async function handleCropSave(cropData: { x: number, y: number, width: number }) {
+  if (!activeCropSessionId.value || !activeCropType.value) return;
+
+  const cropString = JSON.stringify(cropData);
+  const sessionId = activeCropSessionId.value;
+  const type = activeCropType.value;
+
+  try {
+    const result = await commands.updateSessionCrop(sessionId, type, cropString);
+    if (result.status === "ok") {
+      // Update local session state to reflect change immediately
+      const targetSession = [session1.value, session2.value].find(s => s?.id === sessionId);
+      if (targetSession) {
+        (targetSession as any)[`${type}_crop`] = cropString;
+      }
+    } else {
+      console.error("Failed to save crop", result.error);
+    }
+  } catch (e) {
+    console.error("Error saving crop", e);
+  }
+}
+
+const activeInitialCrop = computed(() => {
+  if (!activeCropSessionId.value || !activeCropType.value) return null;
+  const session = [session1.value, session2.value].find(s => s?.id === activeCropSessionId.value);
+  return getParsedCrop(session || null, activeCropType.value);
+});
+
 const imageTypes = [
   { key: 'anterior', label: 'Anterior' },
   { key: 'posterior', label: 'Posterior' },
@@ -262,7 +304,8 @@ const imageTypes = [
           :src="session1 && images[session1.id]?.[type.key] ? images[session1.id][type.key] : null" 
           :crop="getParsedCrop(session1, type.key)"
           empty-text="No Image" 
-          container-class="w-full" 
+          container-class="w-full cursor-pointer hover:ring-2 hover:ring-blue-500 transition-all" 
+          @click="session1 && openCropper(session1.id, type.key)"
         />
 
         <!-- Image 2 -->
@@ -270,31 +313,8 @@ const imageTypes = [
           :src="session2 && images[session2.id]?.[type.key] ? images[session2.id][type.key] : null" 
           :crop="getParsedCrop(session2, type.key)"
           empty-text="No Image" 
-          container-class="w-full" 
-        />
-      </template>
-
-      <!-- Images Rows -->
-      <template v-for="type in imageTypes" :key="type.key">
-        <!-- Label Row -->
-        <div class="col-span-2 text-center py-2 border-b border-gray-700">
-          <h3 class="text-lg font-medium text-gray-300">{{ type.label }}</h3>
-        </div>
-
-        <!-- Image 1 -->
-        <RatioImage 
-          :src="session1 && images[session1.id]?.[type.key] ? images[session1.id][type.key] : null" 
-          :crop="getParsedCrop(session1, type.key)"
-          empty-text="No Image" 
-          container-class="w-full" 
-        />
-
-        <!-- Image 2 -->
-        <RatioImage 
-          :src="session2 && images[session2.id]?.[type.key] ? images[session2.id][type.key] : null" 
-          :crop="getParsedCrop(session2, type.key)"
-          empty-text="No Image" 
-          container-class="w-full" 
+          container-class="w-full cursor-pointer hover:ring-2 hover:ring-blue-500 transition-all" 
+          @click="session2 && openCropper(session2.id, type.key)"
         />
       </template>
 
@@ -337,5 +357,13 @@ const imageTypes = [
         </div>
       </div>
     </div>
+
+    <ImageCropper 
+      :show="showCropper"
+      :image-src="(activeCropSessionId && activeCropType) ? images[activeCropSessionId]?.[activeCropType] : null"
+      :initial-crop="activeInitialCrop"
+      @close="showCropper = false"
+      @save="handleCropSave"
+    />
   </div>
 </template>
