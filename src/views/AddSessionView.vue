@@ -58,39 +58,39 @@ function openCamera(type: string) {
   showCamera.value = true;
 }
 
-async function handlePhotoTaken(photoData: string) {
-  if (!activeImageType.value || !client.value) return;
-
-  try {
-    // Update preview immediately
-    imagePreviews.value[activeImageType.value] = photoData;
-
-    const result = await commands.saveImage(
-      clientId,
-      client.value.firstname,
-      nextSessionNumber.value,
-      activeImageType.value,
-      photoData
-    );
-
-    if (result.status === "ok") {
-      // Update the specific field with the file path
-      if (activeImageType.value === 'anterior') newSession.value.anterior = result.data;
-      if (activeImageType.value === 'posterior') newSession.value.posterior = result.data;
-      if (activeImageType.value === 'right_lateral') newSession.value.right_lateral = result.data;
-      if (activeImageType.value === 'left_lateral') newSession.value.left_lateral = result.data;
-    } else {
-      error.value = "Failed to save image: " + result.error;
-    }
-  } catch (e: any) {
-    error.value = "Error saving image: " + e.message;
-  }
+function handlePhotoTaken(photoData: string) {
+  if (!activeImageType.value) return;
+  // Only update the preview in memory
+  imagePreviews.value[activeImageType.value] = photoData;
 }
 
 async function handleAddSession() {
+  if (!client.value) return;
   saving.value = true;
   error.value = null;
+
   try {
+    // Save images first
+    const imageTypes = ['anterior', 'posterior', 'right_lateral', 'left_lateral'];
+    for (const type of imageTypes) {
+      if (imagePreviews.value[type]) {
+        const result = await commands.saveImage(
+          clientId,
+          client.value.firstname,
+          nextSessionNumber.value,
+          type,
+          imagePreviews.value[type]
+        );
+        
+        if (result.status === "ok") {
+          (newSession.value as any)[type] = result.data;
+        } else {
+          throw new Error(`Failed to save ${type} image: ${result.error}`);
+        }
+      }
+    }
+
+    // Save session to DB
     const result = await commands.addSession(newSession.value);
     if (result.status === "ok") {
       router.push({ name: 'client-sessions', params: { id: clientId } });
