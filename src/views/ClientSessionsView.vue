@@ -16,7 +16,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { ArrowLeft, Plus, GitCompare } from "lucide-vue-next";
+import { ArrowLeft, Plus, GitCompare, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, Edit } from "lucide-vue-next";
 import { h } from "vue";
 
 const route = useRoute();
@@ -117,13 +117,23 @@ const columns = [
         const currentIndex = sessions.value.findIndex(s => s.id === currentId);
         const hasPrevious = currentIndex < sessions.value.length - 1; // Assuming desc sort
         
-        if (!hasPrevious) return null;
+        const buttons = [];
 
-        return h('button', { 
-            onClick: () => compareSingle(info.row.original),
-            class: 'text-blue-400 hover:text-blue-300 flex items-center gap-1 text-xs font-medium',
-            title: 'Compare with previous'
-        }, [h(GitCompare, { class: "w-4 h-4" }), 'Compare Prev']);
+        buttons.push(h('button', { 
+            onClick: () => router.push({ name: 'edit-session', params: { id: clientId, sessionId: currentId } }),
+            class: 'text-gray-600 hover:text-gray-900 mr-3',
+            title: 'Edit Session'
+        }, [h(Edit, { class: "w-4 h-4" })]));
+
+        if (hasPrevious) {
+             buttons.push(h('button', { 
+                onClick: () => compareSingle(info.row.original),
+                class: 'text-blue-400 hover:text-blue-300 flex items-center gap-1 text-xs font-medium',
+                title: 'Compare with previous'
+            }, [h(GitCompare, { class: "w-4 h-4" }), 'Compare Prev']));
+        }
+
+        return h('div', { class: 'flex items-center' }, buttons);
     },
   }),
 ];

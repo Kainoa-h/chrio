@@ -1,5 +1,5 @@
 use crate::db::DbState;
-use crate::models::{Client, CreateClientDto, CreateSessionDto, Session, UpdateClientDto};
+use crate::models::{Client, CreateClientDto, CreateSessionDto, Session, UpdateClientDto, UpdateSessionDto};
 use base64::{engine::general_purpose, Engine as _};
 use specta::specta;
 use std::fs;
@@ -40,8 +40,28 @@ pub async fn get_client_sessions(
 
 #[tauri::command]
 #[specta]
+pub async fn get_session(db: State<'_, DbState>, id: i32) -> Result<Session, String> {
+    match Session::find_by_id(&*db, id).await.map_err(|e| e.to_string())? {
+        Some(s) => Ok(s),
+        None => Err("Session not found".to_string()),
+    }
+}
+
+#[tauri::command]
+#[specta]
 pub async fn add_session(db: State<'_, DbState>, session: CreateSessionDto) -> Result<i32, String> {
     Session::create(&*db, session)
+        .await
+        .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+#[specta]
+pub async fn update_session(
+    db: State<'_, DbState>,
+    session: UpdateSessionDto,
+) -> Result<(), String> {
+    Session::update(&*db, session)
         .await
         .map_err(|e| e.to_string())
 }

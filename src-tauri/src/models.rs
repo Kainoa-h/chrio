@@ -109,6 +109,22 @@ pub struct CreateSessionDto {
     pub left_lateral_crop: Option<String>,
 }
 
+#[derive(Debug, Serialize, Deserialize, Type)]
+pub struct UpdateSessionDto {
+    pub id: i32,
+    pub height: Option<f64>,
+    pub weight: Option<f64>,
+    pub anterior: Option<String>,
+    pub posterior: Option<String>,
+    pub right_lateral: Option<String>,
+    pub left_lateral: Option<String>,
+    pub notes: Option<String>,
+    pub anterior_crop: Option<String>,
+    pub posterior_crop: Option<String>,
+    pub right_lateral_crop: Option<String>,
+    pub left_lateral_crop: Option<String>,
+}
+
 impl Session {
     pub async fn find_by_client_id(
         pool: &SqlitePool,
@@ -138,6 +154,33 @@ impl Session {
             client_id
         )
         .fetch_all(pool)
+        .await
+    }
+
+    pub async fn find_by_id(pool: &SqlitePool, id: i32) -> Result<Option<Self>, sqlx::Error> {
+        sqlx::query_as!(
+            Session,
+            r#"SELECT 
+                id as "id: i32", 
+                client_id as "client_id: i32", 
+                CAST(datetime AS TEXT) as datetime, 
+                session_number as "session_number: i32", 
+                height as "height: f64", 
+                weight as "weight: f64", 
+                anterior, 
+                posterior, 
+                right_lateral, 
+                left_lateral, 
+                notes,
+                anterior_crop,
+                posterior_crop,
+                right_lateral_crop,
+                left_lateral_crop
+            FROM sessions 
+            WHERE id = ?"#,
+            id
+        )
+        .fetch_optional(pool)
         .await
     }
 
@@ -231,6 +274,33 @@ impl Session {
             }
             _ => return Err(sqlx::Error::RowNotFound),
         }
+        Ok(())
+    }
+
+    pub async fn update(pool: &SqlitePool, dto: UpdateSessionDto) -> Result<(), sqlx::Error> {
+        sqlx::query!(
+            r#"UPDATE sessions SET 
+                height = ?, weight = ?, 
+                anterior = ?, posterior = ?, right_lateral = ?, left_lateral = ?, 
+                notes = ?,
+                anterior_crop = ?, posterior_crop = ?, right_lateral_crop = ?, left_lateral_crop = ?
+            WHERE id = ?"#,
+            dto.height,
+            dto.weight,
+            dto.anterior,
+            dto.posterior,
+            dto.right_lateral,
+            dto.left_lateral,
+            dto.notes,
+            dto.anterior_crop,
+            dto.posterior_crop,
+            dto.right_lateral_crop,
+            dto.left_lateral_crop,
+            dto.id
+        )
+        .execute(pool)
+        .await?;
+
         Ok(())
     }
 }

@@ -22,6 +22,11 @@ const routes = [
     component: AddSessionView,
   },
   {
+    path: '/client/:id/sessions/:sessionId/edit',
+    name: 'edit-session',
+    component: AddSessionView,
+  },
+  {
     path: '/client/:clientId/compare',
     name: 'compare-sessions',
     component: CompareSessionsView,

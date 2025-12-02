@@ -1,8 +1,8 @@
 <script setup lang="ts">
-import { ref, onMounted } from "vue";
+import { ref, onMounted, computed } from "vue";
 import { useRoute, useRouter } from "vue-router";
-import { commands, type CreateSessionDto, type Client} from "@/bindings";
-import { ArrowLeft, Camera } from "lucide-vue-next";
+import { commands, type CreateSessionDto, type Client, type UpdateSessionDto} from "@/bindings";
+import { ArrowLeft, Camera, Trash2 } from "lucide-vue-next";
 import CameraModal from "@/components/CameraModal.vue";
 import RatioImage from "@/components/RatioImage.vue";
 import ImageCropper from "@/components/ImageCropper.vue";
@@ -10,6 +10,9 @@ import ImageCropper from "@/components/ImageCropper.vue";
 const route = useRoute();
 const router = useRouter();
 const clientId = Number(route.params.id);
+const sessionId = route.params.sessionId ? Number(route.params.sessionId) : null;
+const isEditing = computed(() => !!sessionId);
+const currentSessionNumber = ref<number | null>(null);
 
 const newSession = ref<CreateSessionDto>({
   client_id: clientId,
@@ -54,9 +57,51 @@ async function fetchClientAndSessionInfo() {
       client.value = clientsResult.data.find(c => c.id === clientId) || null;
     }
 
-    const nextSessionResult = await commands.getNextSessionNumber(clientId);
-    if (nextSessionResult.status === "ok") {
-        nextSessionNumber.value = nextSessionResult.data;
+    if (isEditing.value && sessionId) {
+      const sessionResult = await commands.getSession(sessionId);
+      if (sessionResult.status === "ok") {
+        const s = sessionResult.data;
+        currentSessionNumber.value = s.session_number;
+        
+        newSession.value = {
+            client_id: s.client_id,
+            height: s.height,
+            weight: s.weight,
+            anterior: s.anterior,
+            posterior: s.posterior,
+            right_lateral: s.right_lateral,
+            left_lateral: s.left_lateral,
+            notes: s.notes,
+            anterior_crop: s.anterior_crop,
+            posterior_crop: s.posterior_crop,
+            right_lateral_crop: s.right_lateral_crop,
+            left_lateral_crop: s.left_lateral_crop,
+        };
+
+        const types = ['anterior', 'posterior', 'right_lateral', 'left_lateral'];
+        for (const type of types) {
+            const path = (s as any)[type];
+            if (path) {
+                const imgResult = await commands.readImageBase64(path);
+                if (imgResult.status === "ok") {
+                    imagePreviews.value[type] = imgResult.data;
+                }
+            }
+            const crop = (s as any)[`${type}_crop`];
+            if (crop) {
+                try {
+                    cropData.value[type] = JSON.parse(crop);
+                } catch (e) {
+                    console.error("Failed to parse crop data", e);
+                }
+            }
+        }
+      }
+    } else {
+      const nextSessionResult = await commands.getNextSessionNumber(clientId);
+      if (nextSessionResult.status === "ok") {
+          nextSessionNumber.value = nextSessionResult.data;
+      }
     }
   } catch (e) {
     console.error("Failed to fetch client info", e);
@@ -88,6 +133,13 @@ function handleCropSave(data: { x: number, y: number, width: number }) {
   cropData.value[activeImageType.value] = data;
 }
 
+function discardPhoto(type: string) {
+  imagePreviews.value[type] = "";
+  cropData.value[type] = null;
+  (newSession.value as any)[type] = null;
+  (newSession.value as any)[`${type}_crop`] = null;
+}
+
 async function handleAddSession() {
   if (!client.value) return;
   saving.value = true;
@@ -95,13 +147,14 @@ async function handleAddSession() {
 
   try {
     // Save images first
+    const sessionNo = isEditing.value ? currentSessionNumber.value! : nextSessionNumber.value;
     const imageTypes = ['anterior', 'posterior', 'right_lateral', 'left_lateral'];
     for (const type of imageTypes) {
       if (imagePreviews.value[type]) {
         const result = await commands.saveImage(
           clientId,
           client.value.firstname,
-          nextSessionNumber.value,
+          sessionNo,
           type,
           imagePreviews.value[type]
         );
@@ -119,11 +172,24 @@ async function handleAddSession() {
     }
 
     // Save session to DB
-    const result = await commands.addSession(newSession.value);
-    if (result.status === "ok") {
-      router.push({ name: 'client-sessions', params: { id: clientId } });
+    if (isEditing.value && sessionId) {
+        const updateDto: UpdateSessionDto = {
+            id: sessionId,
+            ...newSession.value
+        };
+        const result = await commands.updateSession(updateDto);
+        if (result.status === "ok") {
+          router.push({ name: 'client-sessions', params: { id: clientId } });
+        } else {
+          error.value = result.error;
+        }
     } else {
-      error.value = result.error;
+        const result = await commands.addSession(newSession.value);
+        if (result.status === "ok") {
+          router.push({ name: 'client-sessions', params: { id: clientId } });
+        } else {
+          error.value = result.error;
+        }
     }
   } catch (e: any) {
     error.value = e.message || "An unknown error occurred";
@@ -146,7 +212,7 @@ onMounted(() => {
       >
         <ArrowLeft class="h-6 w-6 text-gray-600" />
       </button>
-      <h1 class="text-3xl font-bold text-gray-900">Add New Session for {{ client?.firstname || 'Client' }}</h1>
+      <h1 class="text-3xl font-bold text-gray-900">{{ isEditing ? 'Edit Session #' + currentSessionNumber : 'Add New Session' }} for {{ client?.firstname || 'Client' }}</h1>
     </div>
 
     <form @submit.prevent="handleAddSession" class="bg-gray-950 p-6 rounded-md shadow-sm space-y-4 border border-gray-700">
@@ -163,7 +229,7 @@ onMounted(() => {
             @click="openCropper('anterior')"
           >
             <template #overlay>
-              <div v-if="imagePreviews.anterior" class="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity z-10">
+              <div v-if="imagePreviews.anterior" class="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity z-10 flex gap-2">
                  <button 
                   type="button"
                   @click.stop="openCamera('anterior')"
@@ -171,6 +237,14 @@ onMounted(() => {
                   title="Retake Photo"
                 >
                   <Camera class="h-5 w-5" />
+                </button>
+                 <button 
+                  type="button"
+                  @click.stop="discardPhoto('anterior')"
+                  class="p-2 bg-red-800 bg-opacity-75 rounded-full hover:bg-red-700 text-white"
+                  title="Discard Photo"
+                >
+                  <Trash2 class="h-5 w-5" />
                 </button>
               </div>
               <div v-else class="absolute inset-0 flex items-center justify-center">
@@ -197,7 +271,7 @@ onMounted(() => {
             @click="openCropper('posterior')"
           >
             <template #overlay>
-              <div v-if="imagePreviews.posterior" class="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity z-10">
+              <div v-if="imagePreviews.posterior" class="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity z-10 flex gap-2">
                  <button 
                   type="button"
                   @click.stop="openCamera('posterior')"
@@ -205,6 +279,14 @@ onMounted(() => {
                   title="Retake Photo"
                 >
                   <Camera class="h-5 w-5" />
+                </button>
+                 <button 
+                  type="button"
+                  @click.stop="discardPhoto('posterior')"
+                  class="p-2 bg-red-800 bg-opacity-75 rounded-full hover:bg-red-700 text-white"
+                  title="Discard Photo"
+                >
+                  <Trash2 class="h-5 w-5" />
                 </button>
               </div>
               <div v-else class="absolute inset-0 flex items-center justify-center">
@@ -231,7 +313,7 @@ onMounted(() => {
             @click="openCropper('right_lateral')"
           >
             <template #overlay>
-              <div v-if="imagePreviews.right_lateral" class="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity z-10">
+              <div v-if="imagePreviews.right_lateral" class="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity z-10 flex gap-2">
                  <button 
                   type="button"
                   @click.stop="openCamera('right_lateral')"
@@ -239,6 +321,14 @@ onMounted(() => {
                   title="Retake Photo"
                 >
                   <Camera class="h-5 w-5" />
+                </button>
+                 <button 
+                  type="button"
+                  @click.stop="discardPhoto('right_lateral')"
+                  class="p-2 bg-red-800 bg-opacity-75 rounded-full hover:bg-red-700 text-white"
+                  title="Discard Photo"
+                >
+                  <Trash2 class="h-5 w-5" />
                 </button>
               </div>
               <div v-else class="absolute inset-0 flex items-center justify-center">
@@ -265,7 +355,7 @@ onMounted(() => {
             @click="openCropper('left_lateral')"
           >
             <template #overlay>
-              <div v-if="imagePreviews.left_lateral" class="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity z-10">
+              <div v-if="imagePreviews.left_lateral" class="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity z-10 flex gap-2">
                  <button 
                   type="button"
                   @click.stop="openCamera('left_lateral')"
@@ -273,6 +363,14 @@ onMounted(() => {
                   title="Retake Photo"
                 >
                   <Camera class="h-5 w-5" />
+                </button>
+                 <button 
+                  type="button"
+                  @click.stop="discardPhoto('left_lateral')"
+                  class="p-2 bg-red-800 bg-opacity-75 rounded-full hover:bg-red-700 text-white"
+                  title="Discard Photo"
+                >
+                  <Trash2 class="h-5 w-5" />
                 </button>
               </div>
               <div v-else class="absolute inset-0 flex items-center justify-center">
@@ -339,7 +437,7 @@ onMounted(() => {
           :disabled="saving"
           class="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
         >
-          {{ saving ? 'Saving...' : 'Save Session' }}
+          {{ saving ? 'Saving...' : (isEditing ? 'Update Session' : 'Save Session') }}
         </button>
       </div>
     </form>
