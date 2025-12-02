@@ -215,11 +215,11 @@ const imageTypes = [
     <div class="flex items-center mb-6">
       <button 
         @click="router.back()" 
-        class="mr-4 p-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
+        class="mr-4 p-2 rounded-full hover:bg-gray-100 transition-colors"
       >
-        <ArrowLeft class="h-6 w-6 text-gray-600 dark:text-gray-300" />
+        <ArrowLeft class="h-6 w-6 text-gray-600" />
       </button>
-      <h1 class="text-3xl font-bold text-gray-900 dark:text-white">Compare Sessions</h1>
+      <h1 class="text-3xl font-bold text-gray-900">Compare Sessions</h1>
     </div>
 
     <div v-if="loading" class="text-center py-8 text-gray-500">
@@ -235,13 +235,13 @@ const imageTypes = [
       <div class="sticky top-0 z-10 col-span-2 bg-transparent pb-4 -mx-8 px-8"> <!-- Negative margin to extend full width of original container -->
         <div class="grid grid-cols-2 gap-8">
           <!-- Session 1 Header -->
-          <div class="bg-gray-900 p-4 border border-gray-700">
+          <div class="bg-gray-100 p-4 border border-gray-200">
             <div class="flex items-center justify-between gap-2">
               <div class="flex gap-1">
                 <button 
                   @click="jumpToOldest" 
                   :disabled="currentLeftIndex >= availableLeftSessions.length - 1"
-                  class="p-1 text-gray-400 hover:text-white disabled:opacity-30 disabled:hover:text-gray-400"
+                  class="p-1 text-gray-600 hover:text-gray-900 disabled:opacity-30 disabled:hover:text-gray-600"
                   title="Jump to First Session"
                 >
                   <ChevronsLeft class="w-5 h-5" />
@@ -249,7 +249,7 @@ const imageTypes = [
                 <button 
                   @click="moveBack" 
                   :disabled="currentLeftIndex >= availableLeftSessions.length - 1"
-                  class="p-1 text-gray-400 hover:text-white disabled:opacity-30 disabled:hover:text-gray-400"
+                  class="p-1 text-gray-600 hover:text-gray-900 disabled:opacity-30 disabled:hover:text-gray-600"
                   title="Previous Session"
                 >
                   <ChevronLeft class="w-5 h-5" />
@@ -261,7 +261,7 @@ const imageTypes = [
                   v-if="session1"
                   :value="session1.id"
                   @change="e => updateSession1(allSessions.find(s => s.id === Number((e.target as HTMLSelectElement).value))!)"
-                  class="w-full bg-gray-800 border border-gray-600 text-white text-sm rounded px-2 py-1 focus:ring-1 focus:ring-blue-500 outline-none"
+                  class="w-full bg-white border border-gray-300 text-gray-900 text-sm rounded px-2 py-1 focus:ring-1 focus:ring-blue-500 outline-none"
                 >
                   <option 
                     v-for="s in availableLeftSessions" 
@@ -277,7 +277,7 @@ const imageTypes = [
                 <button 
                   @click="moveForward" 
                   :disabled="currentLeftIndex <= 0"
-                  class="p-1 text-gray-400 hover:text-white disabled:opacity-30 disabled:hover:text-gray-400"
+                  class="p-1 text-gray-600 hover:text-gray-900 disabled:opacity-30 disabled:hover:text-gray-600"
                   title="Next Session"
                 >
                   <ChevronRight class="w-5 h-5" />
@@ -285,7 +285,7 @@ const imageTypes = [
                 <button 
                   @click="jumpToNewestPossible" 
                   :disabled="currentLeftIndex <= 0"
-                  class="p-1 text-gray-400 hover:text-white disabled:opacity-30 disabled:hover:text-gray-400"
+                  class="p-1 text-gray-600 hover:text-gray-900 disabled:opacity-30 disabled:hover:text-gray-600"
                   title="Jump to -1 of Right Session"
                 >
                   <ChevronsRight class="w-5 h-5" />
@@ -295,9 +295,9 @@ const imageTypes = [
           </div>
 
           <!-- Session 2 Header -->
-          <div class="bg-gray-900 p-4 border border-gray-700 text-center flex flex-col justify-center h-[62px]">
-            <h2 class="text-xl font-bold text-white leading-tight">Session #{{ session2?.session_number }}</h2>
-            <p class="text-gray-400 text-xs leading-tight">{{ formatDate(session2?.datetime) }}</p>
+          <div class="bg-gray-100 p-4 border border-gray-200 text-center flex flex-col justify-center h-[62px]">
+            <h2 class="text-xl font-bold text-gray-900 leading-tight">Session #{{ session2?.session_number }}</h2>
+            <p class="text-gray-600 text-xs leading-tight">{{ formatDate(session2?.datetime) }}</p>
           </div>
         </div>
       </div>
@@ -306,11 +306,11 @@ const imageTypes = [
       <!-- Images Rows -->
       <template v-for="type in imageTypes" :key="type.key">
         <!-- Label Row -->
-        <div class="col-span-2 text-center py-2 border-b border-gray-700 flex items-center justify-center gap-3">
-          <h3 class="text-lg font-medium text-gray-300">{{ type.label }}</h3>
+        <div class="col-span-2 text-center py-2 border-b border-gray-200 flex items-center justify-center gap-3">
+          <h3 class="text-lg font-medium text-gray-800">{{ type.label }}</h3>
           <button 
             @click="openComparison(type.key)"
-            class="p-1.5 bg-gray-800 text-gray-300 rounded hover:bg-gray-700 hover:text-white transition-colors"
+            class="p-1.5 bg-gray-100 text-gray-700 rounded hover:bg-gray-200 hover:text-gray-900 transition-colors"
             title="Compare Before/After"
           >
             <ChevronsLeftRight class="w-4 h-4" />
@@ -338,38 +338,38 @@ const imageTypes = [
 
       <!-- Data Comparison -->
       <div class="col-span-2 mt-8">
-        <h3 class="text-xl font-bold text-gray-200 mb-4 border-b border-gray-700 pb-2">Data Comparison</h3>
+        <h3 class="text-xl font-bold text-gray-900 mb-4 border-b border-gray-200 pb-2">Data Comparison</h3>
         
         <div class="grid grid-cols-2 gap-8">
           <!-- Session 1 Data -->
-          <div class="bg-gray-900 rounded-lg border border-gray-700 p-4 space-y-3">
-             <div class="flex justify-between items-center border-b border-gray-800 pb-2">
-               <span class="text-gray-400 font-medium">Height</span>
-               <span class="text-gray-200 font-bold">{{ session1?.height ? session1.height + ' cm' : '-' }}</span>
+          <div class="bg-gray-100 rounded-lg border border-gray-200 p-4 space-y-3">
+             <div class="flex justify-between items-center border-b border-gray-300 pb-2">
+               <span class="text-gray-600 font-medium">Height</span>
+               <span class="text-gray-900 font-bold">{{ session1?.height ? session1.height + ' cm' : '-' }}</span>
              </div>
-             <div class="flex justify-between items-center border-b border-gray-800 pb-2">
-               <span class="text-gray-400 font-medium">Weight</span>
-               <span class="text-gray-200 font-bold">{{ session1?.weight ? session1.weight + ' kg' : '-' }}</span>
+             <div class="flex justify-between items-center border-b border-gray-300 pb-2">
+               <span class="text-gray-600 font-medium">Weight</span>
+               <span class="text-gray-900 font-bold">{{ session1?.weight ? session1.weight + ' kg' : '-' }}</span>
              </div>
              <div class="pt-1">
-               <span class="text-gray-400 font-medium block mb-1">Notes</span>
-               <div class="text-gray-300 text-sm bg-gray-950 p-2 rounded border border-gray-800 min-h-[3rem] whitespace-pre-wrap">{{ session1?.notes || '-' }}</div>
+               <span class="text-gray-600 font-medium block mb-1">Notes</span>
+               <div class="text-gray-800 text-sm bg-white p-2 rounded border border-gray-300 min-h-[3rem] whitespace-pre-wrap">{{ session1?.notes || '-' }}</div>
              </div>
           </div>
 
           <!-- Session 2 Data -->
-          <div class="bg-gray-900 rounded-lg border border-gray-700 p-4 space-y-3">
-             <div class="flex justify-between items-center border-b border-gray-800 pb-2">
-               <span class="text-gray-400 font-medium">Height</span>
-               <span class="text-gray-200 font-bold">{{ session2?.height ? session2.height + ' cm' : '-' }}</span>
+          <div class="bg-gray-100 rounded-lg border border-gray-200 p-4 space-y-3">
+             <div class="flex justify-between items-center border-b border-gray-300 pb-2">
+               <span class="text-gray-600 font-medium">Height</span>
+               <span class="text-gray-900 font-bold">{{ session2?.height ? session2.height + ' cm' : '-' }}</span>
              </div>
-             <div class="flex justify-between items-center border-b border-gray-800 pb-2">
-               <span class="text-gray-400 font-medium">Weight</span>
-               <span class="text-gray-200 font-bold">{{ session2?.weight ? session2.weight + ' kg' : '-' }}</span>
+             <div class="flex justify-between items-center border-b border-gray-300 pb-2">
+               <span class="text-gray-600 font-medium">Weight</span>
+               <span class="text-gray-900 font-bold">{{ session2?.weight ? session2.weight + ' kg' : '-' }}</span>
              </div>
              <div class="pt-1">
-               <span class="text-gray-400 font-medium block mb-1">Notes</span>
-               <div class="text-gray-300 text-sm bg-gray-950 p-2 rounded border border-gray-800 min-h-[3rem] whitespace-pre-wrap">{{ session2?.notes || '-' }}</div>
+               <span class="text-gray-600 font-medium block mb-1">Notes</span>
+               <div class="text-gray-800 text-sm bg-white p-2 rounded border border-gray-300 min-h-[3rem] whitespace-pre-wrap">{{ session2?.notes || '-' }}</div>
              </div>
           </div>
         </div>

@@ -62,7 +62,7 @@ const columns = [
     header: "Actions",
     cell: (info) => h(RouterLink, { 
       to: { name: 'client-sessions', params: { id: info.row.original.id } },
-      class: 'font-medium text-blue-600 dark:text-blue-500 hover:underline' 
+      class: 'font-medium text-blue-600 hover:underline' 
     }, () => 'Sessions'),
   }),
 ];
@@ -98,18 +98,18 @@ const table = useVueTable({
         <input
           v-model="globalFilter"
           placeholder="Search clients..."
-          class="flex h-9 w-full rounded-md border border-gray-700 bg-gray-900 px-3 py-1 text-sm shadow-sm transition-colors file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-gray-500 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-blue-500 disabled:cursor-not-allowed disabled:opacity-50 pl-8 text-gray-200"
+          class="flex h-9 w-full rounded-md border border-gray-300 bg-white px-3 py-1 text-sm shadow-sm transition-colors file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-gray-500 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-blue-500 disabled:cursor-not-allowed disabled:opacity-50 pl-8 text-gray-900"
         />
       </div>
     </div>
 
     <!-- Table -->
-    <div class="rounded-md border border-gray-700 bg-gray-950 shadow-sm overflow-hidden">
+    <div class="rounded-md border border-gray-200 bg-white shadow-sm overflow-hidden">
       <div class="relative w-full overflow-auto"> <!-- Added this div to handle scrolling -->
         <Table>
           <TableHeader>
-            <TableRow v-for="headerGroup in table.getHeaderGroups()" :key="headerGroup.id" class="bg-gray-800">
-              <TableHead v-for="header in headerGroup.headers" :key="header.id" class="font-bold text-gray-200">
+            <TableRow v-for="headerGroup in table.getHeaderGroups()" :key="headerGroup.id" class="bg-gray-100">
+              <TableHead v-for="header in headerGroup.headers" :key="header.id" class="font-bold text-gray-700">
                 <FlexRender
                   v-if="!header.isPlaceholder"
                   :render="header.column.columnDef.header"
@@ -120,8 +120,8 @@ const table = useVueTable({
           </TableHeader>
           <TableBody>
             <template v-if="table.getRowModel().rows?.length">
-              <TableRow v-for="row in table.getRowModel().rows" :key="row.id" class="transition-colors hover:bg-gray-800">
-                <TableCell v-for="cell in row.getVisibleCells()" :key="cell.id" class="text-gray-300">
+              <TableRow v-for="row in table.getRowModel().rows" :key="row.id" class="transition-colors hover:bg-gray-50">
+                <TableCell v-for="cell in row.getVisibleCells()" :key="cell.id" class="text-gray-800">
                   <FlexRender
                     :render="cell.column.columnDef.cell"
                     :props="cell.getContext()"
@@ -131,7 +131,7 @@ const table = useVueTable({
             </template>
             <template v-else>
               <TableRow>
-                <TableCell :colspan="columns.length" class="h-24 text-center text-gray-400">
+                <TableCell :colspan="columns.length" class="h-24 text-center text-gray-500">
                   No results found.
                 </TableCell>
               </TableRow>

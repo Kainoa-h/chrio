@@ -142,11 +142,11 @@ onMounted(() => {
     <div class="flex items-center mb-6">
       <button 
         @click="router.push({ name: 'client-sessions', params: { id: clientId } })" 
-        class="mr-4 p-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
+        class="mr-4 p-2 rounded-full hover:bg-gray-100 transition-colors"
       >
-        <ArrowLeft class="h-6 w-6 text-gray-600 dark:text-gray-300" />
+        <ArrowLeft class="h-6 w-6 text-gray-600" />
       </button>
-      <h1 class="text-3xl font-bold text-gray-900 dark:text-white">Add New Session for {{ client?.firstname || 'Client' }}</h1>
+      <h1 class="text-3xl font-bold text-gray-900">Add New Session for {{ client?.firstname || 'Client' }}</h1>
     </div>
 
     <form @submit.prevent="handleAddSession" class="bg-gray-950 p-6 rounded-md shadow-sm space-y-4 border border-gray-700">

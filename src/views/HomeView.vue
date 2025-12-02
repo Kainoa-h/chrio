@@ -17,7 +17,7 @@ onMounted(async () => {
 <template>
   <div class="p-8 max-w-6xl mx-auto">
     <div class="flex justify-between items-center mb-6">
-      <h1 class="text-3xl font-bold text-gray-900 dark:text-white">Clients</h1>
+      <h1 class="text-3xl font-bold text-gray-900">Clients</h1>
       <button 
         @click="showAddModal = true"
         class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg shadow-sm transition-colors flex items-center gap-2"
