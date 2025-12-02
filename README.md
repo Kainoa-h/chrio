@@ -14,6 +14,20 @@ A local-first, application for chiropractic and physical therapy image compariso
 * **Visual Comparison:** Compare images from different sessions side-by-side with synchronized controls to visualize progress over time.
 * **Local & Private:** All data is stored locally on your device using an embedded SQLite database & local file system. No cloud uploads, ensuring patient data privacy.
 
+## Before 1.0.0 Release
+
+* [ ] Test Cases!
+* [ ] Refactor and clean up AI slop
+* [ ] Logging and error handling
+* [ ] Backup & restore functionality
+* [ ] General UI/UX improvements
+  * [ ] tool-tips on hover
+  * [ ] client metrics: session counts, client counts, ...
+  * [ ] navigational improvements (kb shortcuts, larger navigation buttons/areas, guestures )
+  * [ ] persist user's camera choice
+  * [ ] editable crop mask image/svg
+  * [ ] have an actual app icon/logo
+
 ## Tech Stack
 
 * **Frontend:** [Vue 3](https://vuejs.org/) + [TypeScript](https://www.typescriptlang.org/) + [Tailwind CSS](https://tailwindcss.com/) + [Shadcn Vue](https://www.shadcn-vue.com/) (components)
