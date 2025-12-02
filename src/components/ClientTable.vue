@@ -4,6 +4,7 @@ import {
   FlexRender,
   getCoreRowModel,
   getFilteredRowModel,
+  getPaginationRowModel,
   createColumnHelper,
 } from "@tanstack/vue-table";
 import {
@@ -85,6 +86,12 @@ const table = useVueTable({
   columns,
   getCoreRowModel: getCoreRowModel(),
   getFilteredRowModel: getFilteredRowModel(),
+  getPaginationRowModel: getPaginationRowModel(),
+  initialState: {
+    pagination: {
+      pageSize: 20,
+    },
+  },
   state: {
     get globalFilter() {
       return globalFilter.value;
@@ -149,6 +156,61 @@ const table = useVueTable({
             </template>
           </TableBody>
         </Table>
+      </div>
+    </div>
+
+    <!-- Pagination Controls -->
+    <div class="flex items-center justify-between px-2">
+      <div class="flex items-center gap-2 text-sm text-gray-700">
+        <span>Page</span>
+        <span class="font-medium">{{ table.getState().pagination.pageIndex + 1 }}</span>
+        <span>of</span>
+        <span class="font-medium">{{ table.getPageCount() }}</span>
+      </div>
+      
+      <div class="flex items-center gap-2">
+        <select
+          :value="table.getState().pagination.pageSize"
+          @change="(e) => table.setPageSize(Number((e.target as HTMLSelectElement).value))"
+          class="h-8 w-[70px] rounded-md border border-gray-300 bg-white text-gray-700 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+        >
+          <option :value="10">10</option>
+          <option :value="20">20</option>
+          <option :value="30">30</option>
+          <option :value="40">40</option>
+          <option :value="50">50</option>
+        </select>
+
+        <div class="flex items-center space-x-2">
+          <button
+            class="p-2 rounded-md border border-gray-300 bg-white text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+            @click="table.setPageIndex(0)"
+            :disabled="!table.getCanPreviousPage()"
+          >
+            <ChevronsLeft class="h-4 w-4" />
+          </button>
+          <button
+            class="p-2 rounded-md border border-gray-300 bg-white text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+            @click="table.previousPage()"
+            :disabled="!table.getCanPreviousPage()"
+          >
+            <ChevronLeft class="h-4 w-4" />
+          </button>
+          <button
+            class="p-2 rounded-md border border-gray-300 bg-white text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+            @click="table.nextPage()"
+            :disabled="!table.getCanNextPage()"
+          >
+            <ChevronRight class="h-4 w-4" />
+          </button>
+          <button
+            class="p-2 rounded-md border border-gray-300 bg-white text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+            @click="table.setPageIndex(table.getPageCount() - 1)"
+            :disabled="!table.getCanNextPage()"
+          >
+            <ChevronsRight class="h-4 w-4" />
+          </button>
+        </div>
       </div>
     </div>
   </div>

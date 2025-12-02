@@ -6,6 +6,7 @@ import {
   useVueTable,
   FlexRender,
   getCoreRowModel,
+  getPaginationRowModel,
   createColumnHelper,
 } from "@tanstack/vue-table";
 import {
@@ -145,6 +146,12 @@ const table = useVueTable({
   },
   columns,
   getCoreRowModel: getCoreRowModel(),
+  getPaginationRowModel: getPaginationRowModel(),
+  initialState: {
+    pagination: {
+      pageSize: 10,
+    },
+  },
 });
 
 onMounted(async () => {
@@ -207,40 +214,97 @@ onMounted(async () => {
       Error: {{ error }}
     </div>
 
-    <div v-else class="rounded-md border border-gray-200 bg-white shadow-sm overflow-hidden">
-       <div class="relative w-full overflow-auto">
-        <Table>
-          <TableHeader>
-            <TableRow v-for="headerGroup in table.getHeaderGroups()" :key="headerGroup.id" class="bg-gray-100">
-              <TableHead v-for="header in headerGroup.headers" :key="header.id" class="font-bold text-gray-700">
-                <FlexRender
-                  v-if="!header.isPlaceholder"
-                  :render="header.column.columnDef.header"
-                  :props="header.getContext()"
-                />
-              </TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            <template v-if="table.getRowModel().rows?.length">
-              <TableRow v-for="row in table.getRowModel().rows" :key="row.id" class="transition-colors hover:bg-gray-50">
-                <TableCell v-for="cell in row.getVisibleCells()" :key="cell.id" class="text-gray-800">
+    <div v-else class="space-y-4">
+      <div class="rounded-md border border-gray-200 bg-white shadow-sm overflow-hidden">
+        <div class="relative w-full overflow-auto">
+          <Table>
+            <TableHeader>
+              <TableRow v-for="headerGroup in table.getHeaderGroups()" :key="headerGroup.id" class="bg-gray-100">
+                <TableHead v-for="header in headerGroup.headers" :key="header.id" class="font-bold text-gray-700">
                   <FlexRender
-                    :render="cell.column.columnDef.cell"
-                    :props="cell.getContext()"
+                    v-if="!header.isPlaceholder"
+                    :render="header.column.columnDef.header"
+                    :props="header.getContext()"
                   />
-                </TableCell>
+                </TableHead>
               </TableRow>
-            </template>
-            <template v-else>
-              <TableRow>
-                <TableCell :colspan="columns.length" class="h-24 text-center text-gray-500">
-                  No sessions found for this client.
-                </TableCell>
-              </TableRow>
-            </template>
-          </TableBody>
-        </Table>
+            </TableHeader>
+            <TableBody>
+              <template v-if="table.getRowModel().rows?.length">
+                <TableRow v-for="row in table.getRowModel().rows" :key="row.id" class="transition-colors hover:bg-gray-50">
+                  <TableCell v-for="cell in row.getVisibleCells()" :key="cell.id" class="text-gray-800">
+                    <FlexRender
+                      :render="cell.column.columnDef.cell"
+                      :props="cell.getContext()"
+                    />
+                  </TableCell>
+                </TableRow>
+              </template>
+              <template v-else>
+                <TableRow>
+                  <TableCell :colspan="columns.length" class="h-24 text-center text-gray-500">
+                    No sessions found for this client.
+                  </TableCell>
+                </TableRow>
+              </template>
+            </TableBody>
+          </Table>
+        </div>
+      </div>
+
+      <!-- Pagination Controls -->
+      <div class="flex items-center justify-between px-2">
+        <div class="flex items-center gap-2 text-sm text-gray-700">
+          <span>Page</span>
+          <span class="font-medium">{{ table.getState().pagination.pageIndex + 1 }}</span>
+          <span>of</span>
+          <span class="font-medium">{{ table.getPageCount() }}</span>
+        </div>
+        
+        <div class="flex items-center gap-2">
+          <select
+            :value="table.getState().pagination.pageSize"
+            @change="(e) => table.setPageSize(Number((e.target as HTMLSelectElement).value))"
+            class="h-8 w-[70px] rounded-md border border-gray-300 bg-white text-gray-700 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+          >
+            <option :value="10">10</option>
+            <option :value="20">20</option>
+            <option :value="30">30</option>
+            <option :value="40">40</option>
+            <option :value="50">50</option>
+          </select>
+
+          <div class="flex items-center space-x-2">
+            <button
+              class="p-2 rounded-md border border-gray-300 bg-white text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+              @click="table.setPageIndex(0)"
+              :disabled="!table.getCanPreviousPage()"
+            >
+              <ChevronsLeft class="h-4 w-4" />
+            </button>
+            <button
+              class="p-2 rounded-md border border-gray-300 bg-white text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+              @click="table.previousPage()"
+              :disabled="!table.getCanPreviousPage()"
+            >
+              <ChevronLeft class="h-4 w-4" />
+            </button>
+            <button
+              class="p-2 rounded-md border border-gray-300 bg-white text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+              @click="table.nextPage()"
+              :disabled="!table.getCanNextPage()"
+            >
+              <ChevronRight class="h-4 w-4" />
+            </button>
+            <button
+              class="p-2 rounded-md border border-gray-300 bg-white text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+              @click="table.setPageIndex(table.getPageCount() - 1)"
+              :disabled="!table.getCanNextPage()"
+            >
+              <ChevronsRight class="h-4 w-4" />
+            </button>
+          </div>
+        </div>
       </div>
     </div>
   </div>
