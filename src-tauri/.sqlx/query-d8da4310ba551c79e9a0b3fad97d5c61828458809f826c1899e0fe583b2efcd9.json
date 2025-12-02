@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "UPDATE sessions SET \n                height = ?, weight = ?, \n                anterior = ?, posterior = ?, right_lateral = ?, left_lateral = ?, \n                notes = ?,\n                anterior_crop = ?, posterior_crop = ?, right_lateral_crop = ?, left_lateral_crop = ?\n            WHERE id = ?",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 12
+    },
+    "nullable": []
+  },
+  "hash": "d8da4310ba551c79e9a0b3fad97d5c61828458809f826c1899e0fe583b2efcd9"
+}

@@ -1,0 +1,104 @@
+{
+  "db_name": "SQLite",
+  "query": "SELECT \n                id as \"id: i32\", \n                client_id as \"client_id: i32\", \n                CAST(datetime AS TEXT) as datetime, \n                session_number as \"session_number: i32\", \n                height as \"height: f64\", \n                weight as \"weight: f64\", \n                anterior, \n                posterior, \n                right_lateral, \n                left_lateral, \n                notes,\n                anterior_crop,\n                posterior_crop,\n                right_lateral_crop,\n                left_lateral_crop\n            FROM sessions \n            WHERE id = ?",
+  "describe": {
+    "columns": [
+      {
+        "name": "id: i32",
+        "ordinal": 0,
+        "type_info": "Integer"
+      },
+      {
+        "name": "client_id: i32",
+        "ordinal": 1,
+        "type_info": "Integer"
+      },
+      {
+        "name": "datetime",
+        "ordinal": 2,
+        "type_info": "Text"
+      },
+      {
+        "name": "session_number: i32",
+        "ordinal": 3,
+        "type_info": "Integer"
+      },
+      {
+        "name": "height: f64",
+        "ordinal": 4,
+        "type_info": "Float"
+      },
+      {
+        "name": "weight: f64",
+        "ordinal": 5,
+        "type_info": "Float"
+      },
+      {
+        "name": "anterior",
+        "ordinal": 6,
+        "type_info": "Text"
+      },
+      {
+        "name": "posterior",
+        "ordinal": 7,
+        "type_info": "Text"
+      },
+      {
+        "name": "right_lateral",
+        "ordinal": 8,
+        "type_info": "Text"
+      },
+      {
+        "name": "left_lateral",
+        "ordinal": 9,
+        "type_info": "Text"
+      },
+      {
+        "name": "notes",
+        "ordinal": 10,
+        "type_info": "Text"
+      },
+      {
+        "name": "anterior_crop",
+        "ordinal": 11,
+        "type_info": "Text"
+      },
+      {
+        "name": "posterior_crop",
+        "ordinal": 12,
+        "type_info": "Text"
+      },
+      {
+        "name": "right_lateral_crop",
+        "ordinal": 13,
+        "type_info": "Text"
+      },
+      {
+        "name": "left_lateral_crop",
+        "ordinal": 14,
+        "type_info": "Text"
+      }
+    ],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true
+    ]
+  },
+  "hash": "7e46f84feff24df85d941f8c62e31a3baaacb3bab0c2cd9dae7f711e06d79edb"
+}
