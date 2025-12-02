@@ -464,8 +464,8 @@ onMounted(async () => {
     <ImageComparisonModal
       :show="showComparisonModal"
       :title="customComparison ? 'Custom Comparison' : (imageTypes.find(t => t.key === activeComparisonType)?.label || '')"
-      :image1-src="customComparison ? customComparison.img1?.src : ((session1 && activeComparisonType) ? imageCache[session1.id]?.[activeComparisonType] : null)"
-      :image2-src="customComparison ? customComparison.img2?.src : ((session2 && activeComparisonType) ? imageCache[session2.id]?.[activeComparisonType] : null)"
+      :image1-src="customComparison ? (customComparison.img1?.src ?? null) : ((session1 && activeComparisonType) ? (imageCache[session1.id]?.[activeComparisonType] ?? null) : null)"
+      :image2-src="customComparison ? (customComparison.img2?.src ?? null) : ((session2 && activeComparisonType) ? (imageCache[session2.id]?.[activeComparisonType] ?? null) : null)"
       :crop1="customComparison ? customComparison.img1?.crop : getParsedCrop(session1, activeComparisonType || '')"
       :crop2="customComparison ? customComparison.img2?.crop : getParsedCrop(session2, activeComparisonType || '')"
       :label1="customComparison ? customComparison.img1?.label : (session1 ? `Session #${session1.session_number}` : 'Before')"
@@ -489,7 +489,7 @@ onMounted(async () => {
     <!-- Floating Selection Card -->
     <div v-if="isSelectMode" class="fixed bottom-8 left-1/2 -translate-x-1/2 z-40 bg-white rounded-xl shadow-xl border border-gray-200 p-3 flex items-center gap-4 animate-in slide-in-from-bottom-4 fade-in duration-300">
         <div class="flex gap-2">
-            <div v-for="(img, idx) in selectedImages" :key="img.key" class="relative h-12 w-12 rounded overflow-hidden border border-gray-200 group">
+            <div v-for="img in selectedImages" :key="img.key" class="relative h-12 w-12 rounded overflow-hidden border border-gray-200 group">
                 <img :src="img.src" class="h-full w-full object-cover" />
                 <div class="absolute inset-0 bg-black/20 group-hover:bg-black/0 transition-colors"></div>
             </div>
