@@ -1,4 +1,4 @@
-use chrono::Utc;
+use chrono::Local;
 use serde::{Deserialize, Serialize};
 use specta::Type;
 use sqlx::{FromRow, SqlitePool};
@@ -41,7 +41,7 @@ impl Client {
     }
 
     pub async fn create(pool: &SqlitePool, dto: CreateClientDto) -> Result<i32, sqlx::Error> {
-        let registration_date = Utc::now().to_rfc3339();
+        let registration_date = Local::now().to_rfc3339();
 
         let id = sqlx::query!(
             "INSERT INTO clients (firstname, lastname, dob, sex, registration_date) VALUES (?, ?, ?, ?, ?)",
@@ -185,7 +185,7 @@ impl Session {
     }
 
     pub async fn create(pool: &SqlitePool, dto: CreateSessionDto) -> Result<i32, sqlx::Error> {
-        let datetime = Utc::now().to_rfc3339();
+        let datetime = Local::now().to_rfc3339();
 
         // Calculate the next session number for this client
         let next_session_number = sqlx::query!(
@@ -253,24 +253,40 @@ impl Session {
     ) -> Result<(), sqlx::Error> {
         match image_type {
             "anterior" => {
-                sqlx::query!("UPDATE sessions SET anterior_crop = ? WHERE id = ?", crop_data, session_id)
-                    .execute(pool)
-                    .await?;
+                sqlx::query!(
+                    "UPDATE sessions SET anterior_crop = ? WHERE id = ?",
+                    crop_data,
+                    session_id
+                )
+                .execute(pool)
+                .await?;
             }
             "posterior" => {
-                sqlx::query!("UPDATE sessions SET posterior_crop = ? WHERE id = ?", crop_data, session_id)
-                    .execute(pool)
-                    .await?;
+                sqlx::query!(
+                    "UPDATE sessions SET posterior_crop = ? WHERE id = ?",
+                    crop_data,
+                    session_id
+                )
+                .execute(pool)
+                .await?;
             }
             "right_lateral" => {
-                sqlx::query!("UPDATE sessions SET right_lateral_crop = ? WHERE id = ?", crop_data, session_id)
-                    .execute(pool)
-                    .await?;
+                sqlx::query!(
+                    "UPDATE sessions SET right_lateral_crop = ? WHERE id = ?",
+                    crop_data,
+                    session_id
+                )
+                .execute(pool)
+                .await?;
             }
             "left_lateral" => {
-                sqlx::query!("UPDATE sessions SET left_lateral_crop = ? WHERE id = ?", crop_data, session_id)
-                    .execute(pool)
-                    .await?;
+                sqlx::query!(
+                    "UPDATE sessions SET left_lateral_crop = ? WHERE id = ?",
+                    crop_data,
+                    session_id
+                )
+                .execute(pool)
+                .await?;
             }
             _ => return Err(sqlx::Error::RowNotFound),
         }
