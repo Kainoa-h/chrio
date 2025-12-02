@@ -13,8 +13,12 @@ const router = useRouter();
 const clientId = Number(route.params.clientId);
 
 // Initial sessions from query params
-const initialSessionId1 = Number(route.query.s1);
-const initialSessionId2 = Number(route.query.s2);
+const initialSessionIds = (route.query.ids as string)?.split(',').map(Number) || [];
+// Fallback to old params if ids is missing
+if (initialSessionIds.length === 0) {
+    if (route.query.s1) initialSessionIds.push(Number(route.query.s1));
+    if (route.query.s2) initialSessionIds.push(Number(route.query.s2));
+}
 
 const allSessions = ref<Session[]>([]);
 // Visible session IDs in order (Left to Right)
@@ -335,12 +339,9 @@ onMounted(async () => {
       // The sort in `CompareSessionColumn` handles it.
 
       // Init visible sessions
-      const s1 = allSessions.value.find(s => s.id === initialSessionId1);
-      const s2 = allSessions.value.find(s => s.id === initialSessionId2);
-
-      const initialList = [];
-      if (s1) initialList.push(s1);
-      if (s2) initialList.push(s2);
+      const initialList = initialSessionIds
+        .map(id => allSessions.value.find(s => s.id === id))
+        .filter((s): s is Session => !!s);
       
       // Ensure sorted by session_number ASC
       initialList.sort((a, b) => a.session_number - b.session_number);
@@ -350,7 +351,7 @@ onMounted(async () => {
       }
 
       if (initialList.length === 0 && allSessions.value.length > 0) {
-          // Fallback: load newest session
+          // Fallback: load newest session if nothing valid passed
           await addSessionToView(allSessions.value[0], 'end');
       }
 

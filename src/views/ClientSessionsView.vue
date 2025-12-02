@@ -17,7 +17,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { ArrowLeft, Plus, GitCompare, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, Edit } from "lucide-vue-next";
+import { ArrowLeft, Plus, GitCompare, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, Edit, Check } from "lucide-vue-next";
 import { h } from "vue";
 
 const route = useRoute();
@@ -48,9 +48,6 @@ function toggleSelection(id: number) {
     arr.splice(index, 1);
     return;
   }
-  if (arr.length === 2) {
-    arr.pop(1);
-  }
   arr.push(id);
 }
 
@@ -66,21 +63,28 @@ function compareSingle(currentSession: Session) {
      router.push({ 
        name: 'compare-sessions', 
        params: { clientId }, 
-       query: { s1: prevSession.id, s2: currentSession.id } 
+       query: { ids: `${prevSession.id},${currentSession.id}` } 
      });
   }
 }
 
 function compareSelected() {
-  if (selectedSessionIds.value.length !== 2) return;
+  if (selectedSessionIds.value.length < 2) return;
   const selected = sessions.value.filter(s => selectedSessionIds.value.includes(s.id));
   // Sort by session_number asc (older first)
   selected.sort((a, b) => a.session_number - b.session_number);
   
+  // Pass selected IDs as query parameters. Since we can have multiple, we can pass s1, s2, s3... or maybe pass a list if the router supports it?
+  // The current CompareSessionsView expects s1 and s2 initially. 
+  // But the new CompareSessionsView can handle multiple if we update it to read from a list or just assume 2 initially.
+  // Wait, the NEW CompareSessionsView handles dynamic columns. We should update it to accept an array of IDs or handle multiple query params.
+  // Let's pass them as a comma-separated list in a new 'ids' query param, or multiple 's' params?
+  // Standard way: ids=1,2,3
+  
   router.push({ 
      name: 'compare-sessions', 
      params: { clientId }, 
-     query: { s1: selected[0].id, s2: selected[1].id } 
+     query: { ids: selected.map(s => s.id).join(',') } 
   });
 }
 
@@ -88,12 +92,20 @@ const columns = [
   columnHelper.display({
     id: "select",
     header: () => "Select",
-    cell: (info) => h('input', { 
-      type: 'checkbox', 
-      checked: selectedSessionIds.value.includes(info.row.original.id),
-      onChange: () => toggleSelection(info.row.original.id),
-      class: "rounded border-gray-300 bg-white text-blue-600 focus:ring-blue-500"
-    }),
+    cell: (info) => {
+      const isSelected = selectedSessionIds.value.includes(info.row.original.id);
+      return h('div', {
+        class: 'relative flex items-center justify-center h-5 w-5 rounded border border-gray-300 bg-white cursor-pointer',
+        onClick: (e) => {
+          e.stopPropagation(); // Prevent row click from firing
+          toggleSelection(info.row.original.id);
+        },
+      }, [
+        isSelected
+          ? h(Check, { class: 'h-4 w-4 text-blue-600' })
+          : null
+      ]);
+    },
   }),
   columnHelper.accessor("session_number", {
     header: "Session #",
@@ -190,11 +202,11 @@ onMounted(async () => {
         </div>
         
         <button 
-            v-if="selectedSessionIds.length === 2"
+            v-if="selectedSessionIds.length >= 2"
             @click="compareSelected"
             class="bg-indigo-600 hover:bg-indigo-700 text-white px-3 py-1.5 rounded-lg shadow-sm transition-colors flex items-center gap-2 text-sm"
         >
-            <GitCompare class="h-4 w-4" /> Compare Selected (2)
+            <GitCompare class="h-4 w-4" /> Compare Selected ({{ selectedSessionIds.length }})
         </button>
       </div>
 
