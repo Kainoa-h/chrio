@@ -2,102 +2,170 @@
 import { ref, onMounted, computed } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { commands, type Session } from "@/bindings";
-import { ArrowLeft, ChevronsLeft, ChevronLeft, ChevronRight, ChevronsRight, ChevronsLeftRight } from "lucide-vue-next";
-import RatioImage from "@/components/RatioImage.vue";
+import { ArrowLeft, Plus, CheckSquare, Check, X } from "lucide-vue-next";
 import ImageCropper from "@/components/ImageCropper.vue";
+import CompareSessionColumn from "@/components/CompareSessionColumn.vue";
+import ImageModal from "@/components/ImageModal.vue";
 import ImageComparisonModal from "@/components/ImageComparisonModal.vue";
 
 const route = useRoute();
 const router = useRouter();
 const clientId = Number(route.params.clientId);
-const session1Id = Number(route.query.s1);
-const session2Id = Number(route.query.s2);
+
+// Initial sessions from query params
+const initialSessionId1 = Number(route.query.s1);
+const initialSessionId2 = Number(route.query.s2);
 
 const allSessions = ref<Session[]>([]);
-const session1 = ref<Session | null>(null);
-const session2 = ref<Session | null>(null);
+// Visible session IDs in order (Left to Right)
+const visibleSessionIds = ref<number[]>([]);
+
 const loading = ref(true);
 const error = ref<string | null>(null);
 
-// Store base64 images: images[sessionId][type] = base64String
-const images = ref<Record<number, Record<string, string>>>({});
+// Cache for images: images[sessionId][type] = base64String
+const imageCache = ref<Record<number, Record<string, string>>>({});
 
 const showCropper = ref(false);
+const showImageModal = ref(false);
 const showComparisonModal = ref(false);
 const activeCropSessionId = ref<number | null>(null);
 const activeCropType = ref<string | null>(null);
 const activeComparisonType = ref<string | null>(null);
 
-// Available sessions for the left side (must be older than session 2)
-const availableLeftSessions = computed(() => {
-  if (!session2.value) return [];
-  // sessions are sorted DESC by backend (newest first)
-  // We want sessions strictly older than session2 (lower session number or index > session2 index)
-  return allSessions.value.filter(s => s.session_number < session2.value!.session_number);
+// Helper refs for legacy modal compatibility (derived from visible/selected)
+// Actually the modal now uses custom props mostly, but `getParsedCrop` needs updating
+const session1 = computed(() => visibleSessions.value[0] || null);
+const session2 = computed(() => visibleSessions.value[1] || null);
+
+// Selection Mode State
+const isSelectMode = ref(false);
+const selectedImages = ref<{
+    key: string;
+    sessionId: number;
+    type: string;
+    src: string;
+    crop: any;
+    label: string;
+}[]>([]);
+
+const selectedKeys = computed(() => selectedImages.value.map(i => i.key));
+
+function toggleSelectMode() {
+    isSelectMode.value = !isSelectMode.value;
+    if (!isSelectMode.value) {
+        selectedImages.value = [];
+    }
+}
+
+function handleSelectImage(sessionId: number, type: string) {
+    if (!isSelectMode.value) return;
+
+    const key = `${sessionId}-${type}`;
+    const existingIndex = selectedImages.value.findIndex(i => i.key === key);
+
+    if (existingIndex !== -1) {
+        // Deselect if already selected
+        selectedImages.value.splice(existingIndex, 1);
+        return;
+    }
+
+    const session = allSessions.value.find(s => s.id === sessionId);
+    const src = imageCache.value[sessionId]?.[type];
+    
+    if (!session || !src) return;
+
+    const cropKey = `${type}_crop` as keyof Session;
+    let crop = null;
+    try {
+        const cropStr = session[cropKey];
+        if (typeof cropStr === 'string') crop = JSON.parse(cropStr);
+    } catch {}
+
+    const newItem = {
+        key,
+        sessionId,
+        type,
+        src,
+        crop,
+        label: `Session #${session.session_number} - ${type.replace('_', ' ')}`
+    };
+
+    // Add to list (FIFO max 2)
+    if (selectedImages.value.length >= 2) {
+        selectedImages.value.shift();
+    }
+    selectedImages.value.push(newItem);
+}
+
+function compareSelected() {
+    if (selectedImages.value.length !== 2) return;
+    // We need to adapt the ImageComparisonModal props or reuse logic
+    // The current modal expects `session1` and `session2` refs implicitly for labels, 
+    // but we can just pass props directly.
+    // Wait, the modal component logic in this file relies on `session1` and `session2` refs for labels?
+    // Let's check the template usage of ImageComparisonModal.
+    // It uses specific props. We can just use a separate "Custom Compare" state.
+    
+    // Actually, ImageComparisonModal is generic enough.
+    // We just need to set the props.
+    
+    showComparisonModal.value = true;
+    // We will need a way to tell the modal WHAT to show.
+    // The current implementation binds directly to `session1` and `session2`.
+    // We should refactor `activeComparisonType` to support this custom mode OR add new state.
+}
+
+// Custom Comparison State to override the default row-based comparison
+const customComparison = ref<{
+    img1: { src: string, crop: any, label: string } | null,
+    img2: { src: string, crop: any, label: string } | null,
+} | null>(null);
+
+function handleCompareSelected() {
+    if (selectedImages.value.length !== 2) return;
+    customComparison.value = {
+        img1: { 
+            src: selectedImages.value[0].src, 
+            crop: selectedImages.value[0].crop, 
+            label: selectedImages.value[0].label 
+        },
+        img2: { 
+            src: selectedImages.value[1].src, 
+            crop: selectedImages.value[1].crop, 
+            label: selectedImages.value[1].label 
+        }
+    };
+    showComparisonModal.value = true;
+}
+
+function exitSelectMode() {
+    isSelectMode.value = false;
+    selectedImages.value = [];
+    customComparison.value = null;
+}
+
+// Computed visible sessions objects
+const visibleSessions = computed(() => {
+  return visibleSessionIds.value
+    .map(id => allSessions.value.find(s => s.id === id))
+    .filter((s): s is Session => !!s);
 });
 
-// Current index in the available list (0 is newest/closest to session 2, length-1 is oldest)
-const currentLeftIndex = computed(() => {
-  if (!session1.value) return -1;
-  return availableLeftSessions.value.findIndex(s => s.id === session1.value!.id);
-});
-
-// Compute crop data for the active session being cropped
-const activeInitialCrop = computed(() => {
-  if (!activeCropSessionId.value || !activeCropType.value) return null;
-  const session = [session1.value, session2.value].find(s => s?.id === activeCropSessionId.value);
-  return getParsedCrop(session || null, activeCropType.value);
-});
-
-async function updateSession1(newSession: Session) {
-  session1.value = newSession;
-  await loadSessionImages(newSession);
-  // Update URL without reloading
-  router.replace({ 
-    query: { ...route.query, s1: newSession.id } 
-  });
-}
-
-function jumpToOldest() {
-  const sessions = availableLeftSessions.value;
-  if (sessions.length > 0) {
-    updateSession1(sessions[sessions.length - 1]);
-  }
-}
-
-function moveBack() {
-  const index = currentLeftIndex.value;
-  const sessions = availableLeftSessions.value;
-  if (index < sessions.length - 1) {
-    updateSession1(sessions[index + 1]);
-  }
-}
-
-function moveForward() {
-  const index = currentLeftIndex.value;
-  const sessions = availableLeftSessions.value;
-  if (index > 0) {
-    updateSession1(sessions[index - 1]);
-  }
-}
-
-function jumpToNewestPossible() {
-  const sessions = availableLeftSessions.value;
-  if (sessions.length > 0) {
-    updateSession1(sessions[0]);
-  }
+// Helper to find session by ID
+function getSession(id: number) {
+    return allSessions.value.find(s => s.id === id);
 }
 
 async function loadImage(sessionId: number, type: string, path: string | null) {
   if (!path) return;
-  // Don't reload if we have it
-  if (images.value[sessionId]?.[type]) return;
+  if (imageCache.value[sessionId]?.[type]) return;
 
   try {
     const result = await commands.readImageBase64(path);
     if (result.status === "ok") {
-      if (!images.value[sessionId]) images.value[sessionId] = {};
-      images.value[sessionId][type] = result.data;
+      if (!imageCache.value[sessionId]) imageCache.value[sessionId] = {};
+      imageCache.value[sessionId][type] = result.data;
     }
   } catch (e) {
     console.error(`Failed to load image ${type} for session ${sessionId}`, e);
@@ -113,32 +181,64 @@ async function loadSessionImages(session: Session) {
   ]);
 }
 
-onMounted(async () => {
-  try {
-    const result = await commands.getClientSessions(clientId);
-    if (result.status === "ok") {
-      allSessions.value = result.data;
-      session1.value = allSessions.value.find(s => s.id === session1Id) || null;
-      session2.value = allSessions.value.find(s => s.id === session2Id) || null;
-
-      if (!session1.value || !session2.value) {
-        error.value = "Could not find one or both sessions.";
-        return;
-      }
-
-      await Promise.all([
-        loadSessionImages(session1.value),
-        loadSessionImages(session2.value)
-      ]);
+async function addSessionToView(session: Session, position: 'start' | 'end') {
+    if (position === 'start') {
+        visibleSessionIds.value.unshift(session.id);
     } else {
-      error.value = result.error;
+        visibleSessionIds.value.push(session.id);
     }
-  } catch (e: any) {
-    error.value = e.message || "An unknown error occurred";
-  } finally {
-    loading.value = false;
-  }
+    await loadSessionImages(session);
+}
+
+function addOlder() {
+    if (visibleSessions.value.length === 0) return;
+    const oldestVisible = visibleSessions.value[0];
+    // Find candidate: Closest session number < oldestVisible
+    const candidates = allSessions.value.filter(s => s.session_number < oldestVisible.session_number);
+    // Sort by session number desc (closest to oldestVisible)
+    candidates.sort((a, b) => b.session_number - a.session_number);
+    
+    if (candidates.length > 0) {
+        addSessionToView(candidates[0], 'start');
+    }
+}
+
+function addNewer() {
+    if (visibleSessions.value.length === 0) return;
+    const newestVisible = visibleSessions.value[visibleSessions.value.length - 1];
+    // Find candidate: Closest session number > newestVisible
+    const candidates = allSessions.value.filter(s => s.session_number > newestVisible.session_number);
+    // Sort by session number asc (closest to newestVisible)
+    candidates.sort((a, b) => a.session_number - b.session_number);
+    
+    if (candidates.length > 0) {
+        addSessionToView(candidates[0], 'end');
+    }
+}
+
+// Disable logic
+const canAddOlder = computed(() => {
+    if (visibleSessions.value.length === 0) return false;
+    const oldestVisible = visibleSessions.value[0];
+    return allSessions.value.some(s => s.session_number < oldestVisible.session_number);
 });
+
+const canAddNewer = computed(() => {
+    if (visibleSessions.value.length === 0) return false;
+    const newestVisible = visibleSessions.value[visibleSessions.value.length - 1];
+    return allSessions.value.some(s => s.session_number > newestVisible.session_number);
+});
+
+async function handleUpdateSession(index: number, newSession: Session) {
+    visibleSessionIds.value[index] = newSession.id;
+    await loadSessionImages(newSession);
+}
+
+function handleRemoveSession(index: number) {
+    if (visibleSessionIds.value.length > 1) {
+        visibleSessionIds.value.splice(index, 1);
+    }
+}
 
 function getParsedCrop(session: Session | null, type: string) {
   if (!session) return null;
@@ -154,22 +254,45 @@ function getParsedCrop(session: Session | null, type: string) {
   return null;
 }
 
-function formatDate(dateString: string | undefined) {
-  if (!dateString) return "-";
-  const date = new Date(dateString);
-  return new Intl.DateTimeFormat('en-GB', { 
-    day: '2-digit', 
-    month: 'long', 
-    year: 'numeric' 
-  }).format(date);
+// Crop Handling
+const activeInitialCrop = computed(() => {
+  if (!activeCropSessionId.value || !activeCropType.value) return null;
+  const session = allSessions.value.find(s => s.id === activeCropSessionId.value);
+  if (!session) return null;
+  
+  const key = `${activeCropType.value}_crop` as keyof Session;
+  const cropString = session[key];
+  if (typeof cropString === 'string') {
+    try {
+      return JSON.parse(cropString);
+    } catch {
+        return null;
+    }
+  }
+  return null;
+});
+
+function openImageModal(sessionId: number, type: string) {
+    // Only open if image exists
+    if (imageCache.value[sessionId]?.[type]) {
+        activeCropSessionId.value = sessionId;
+        activeCropType.value = type;
+        showImageModal.value = true;
+    }
 }
 
-function openCropper(sessionId: number, type: string) {
-  if (images.value[sessionId]?.[type]) {
-    activeCropSessionId.value = sessionId;
-    activeCropType.value = type;
+function handleOpenCropper(sessionId: number, type: string) {
+     if (imageCache.value[sessionId]?.[type]) {
+        activeCropSessionId.value = sessionId;
+        activeCropType.value = type;
+        showCropper.value = true;
+    }
+}
+
+function handleCropFromModal() {
+    showImageModal.value = false;
+    // Wait a bit? No need.
     showCropper.value = true;
-  }
 }
 
 async function handleCropSave(cropData: { x: number, y: number, width: number }) {
@@ -182,23 +305,14 @@ async function handleCropSave(cropData: { x: number, y: number, width: number })
   try {
     const result = await commands.updateSessionCrop(sessionId, type, cropString);
     if (result.status === "ok") {
-      // Update local session state to reflect change immediately
-      const targetSession = [session1.value, session2.value].find(s => s?.id === sessionId);
-      if (targetSession) {
-        (targetSession as any)[`${type}_crop`] = cropString;
+      // Update local session state
+      const sessionIndex = allSessions.value.findIndex(s => s.id === sessionId);
+      if (sessionIndex !== -1) {
+        (allSessions.value[sessionIndex] as any)[`${type}_crop`] = cropString;
       }
-    } else {
-      console.error("Failed to save crop", result.error);
     }
   } catch (e) {
     console.error("Error saving crop", e);
-  }
-}
-
-function openComparison(type: string) {
-  if (session1.value && session2.value) {
-    activeComparisonType.value = type;
-    showComparisonModal.value = true;
   }
 }
 
@@ -208,193 +322,200 @@ const imageTypes = [
   { key: 'right_lateral', label: 'Right Lateral' },
   { key: 'left_lateral', label: 'Left Lateral' },
 ];
+
+onMounted(async () => {
+  try {
+    const result = await commands.getClientSessions(clientId);
+    if (result.status === "ok") {
+      allSessions.value = result.data;
+      // Sort all sessions by session_number ascending for easier logic?
+      // Actually the backend sends DESC. Let's keep that in mind or sort it locally to be consistent.
+      // Let's sort ASC locally for "Timeline" logic (Left=Old -> Right=New)
+      // Actually `CompareSessionColumn` expects them sorted? 
+      // The sort in `CompareSessionColumn` handles it.
+
+      // Init visible sessions
+      const s1 = allSessions.value.find(s => s.id === initialSessionId1);
+      const s2 = allSessions.value.find(s => s.id === initialSessionId2);
+
+      const initialList = [];
+      if (s1) initialList.push(s1);
+      if (s2) initialList.push(s2);
+      
+      // Ensure sorted by session_number ASC
+      initialList.sort((a, b) => a.session_number - b.session_number);
+
+      for (const s of initialList) {
+          await addSessionToView(s, 'end');
+      }
+
+      if (initialList.length === 0 && allSessions.value.length > 0) {
+          // Fallback: load newest session
+          await addSessionToView(allSessions.value[0], 'end');
+      }
+
+    } else {
+      error.value = result.error;
+    }
+  } catch (e: any) {
+    error.value = e.message || "An unknown error occurred";
+  } finally {
+    loading.value = false;
+  }
+});
 </script>
 
 <template>
-  <div class="p-8 max-w-6xl mx-auto pb-20">
-    <div class="flex items-center mb-6">
+  <div 
+    class="h-screen flex flex-col"
+    :style="isSelectMode 
+      ? { 
+          backgroundImage: 'radial-gradient(rgb(0, 0, 0) 1px, transparent 1px)', 
+          backgroundSize: '20px 20px',
+          backgroundColor: 'rgb(243, 244, 246)' // Tailwind gray-100 color
+        } 
+      : { backgroundColor: 'rgb(249, 250, 251)' } // Tailwind gray-50 color
+    "
+  >
+    <!-- Header -->
+    <div class="bg-white shadow-sm border-b border-gray-200 p-4 flex items-center z-30 flex-shrink-0">
       <button 
-        @click="router.back()" 
+        @click="router.push({ name: 'client-sessions', params: { id: clientId } })" 
         class="mr-4 p-2 rounded-full hover:bg-gray-100 transition-colors"
       >
         <ArrowLeft class="h-6 w-6 text-gray-600" />
       </button>
-      <h1 class="text-3xl font-bold text-gray-900">Compare Sessions</h1>
+      <h1 class="text-2xl font-bold text-gray-900">Compare Sessions</h1>
     </div>
 
-    <div v-if="loading" class="text-center py-8 text-gray-500">
-      Loading comparison...
-    </div>
-
-    <div v-else-if="error" class="text-center py-8 text-red-500">
-      Error: {{ error }}
-    </div>
-
-    <div v-else class="grid grid-cols-2 gap-8">
-      <!-- Sticky Header Container -->
-      <div class="sticky top-0 z-10 col-span-2 bg-transparent pb-4 -mx-8 px-8"> <!-- Negative margin to extend full width of original container -->
-        <div class="grid grid-cols-2 gap-8">
-          <!-- Session 1 Header -->
-          <div class="bg-gray-100 p-4 border border-gray-200">
-            <div class="flex items-center justify-between gap-2">
-              <div class="flex gap-1">
-                <button 
-                  @click="jumpToOldest" 
-                  :disabled="currentLeftIndex >= availableLeftSessions.length - 1"
-                  class="p-1 text-gray-600 hover:text-gray-900 disabled:opacity-30 disabled:hover:text-gray-600"
-                  title="Jump to First Session"
-                >
-                  <ChevronsLeft class="w-5 h-5" />
-                </button>
-                <button 
-                  @click="moveBack" 
-                  :disabled="currentLeftIndex >= availableLeftSessions.length - 1"
-                  class="p-1 text-gray-600 hover:text-gray-900 disabled:opacity-30 disabled:hover:text-gray-600"
-                  title="Previous Session"
-                >
-                  <ChevronLeft class="w-5 h-5" />
-                </button>
-              </div>
-
-              <div class="flex-1 mx-2">
-                <select 
-                  v-if="session1"
-                  :value="session1.id"
-                  @change="e => updateSession1(allSessions.find(s => s.id === Number((e.target as HTMLSelectElement).value))!)"
-                  class="w-full bg-white border border-gray-300 text-gray-900 text-sm rounded px-2 py-1 focus:ring-1 focus:ring-blue-500 outline-none"
-                >
-                  <option 
-                    v-for="s in availableLeftSessions" 
-                    :key="s.id" 
-                    :value="s.id"
-                  >
-                    Session #{{ s.session_number }} - {{ formatDate(s.datetime) }}
-                  </option>
-                </select>
-              </div>
-
-              <div class="flex gap-1">
-                <button 
-                  @click="moveForward" 
-                  :disabled="currentLeftIndex <= 0"
-                  class="p-1 text-gray-600 hover:text-gray-900 disabled:opacity-30 disabled:hover:text-gray-600"
-                  title="Next Session"
-                >
-                  <ChevronRight class="w-5 h-5" />
-                </button>
-                <button 
-                  @click="jumpToNewestPossible" 
-                  :disabled="currentLeftIndex <= 0"
-                  class="p-1 text-gray-600 hover:text-gray-900 disabled:opacity-30 disabled:hover:text-gray-600"
-                  title="Jump to -1 of Right Session"
-                >
-                  <ChevronsRight class="w-5 h-5" />
-                </button>
-              </div>
-            </div>
-          </div>
-
-          <!-- Session 2 Header -->
-          <div class="bg-gray-100 p-4 border border-gray-200 text-center flex flex-col justify-center h-[62px]">
-            <h2 class="text-xl font-bold text-gray-900 leading-tight">Session #{{ session2?.session_number }}</h2>
-            <p class="text-gray-600 text-xs leading-tight">{{ formatDate(session2?.datetime) }}</p>
-          </div>
-        </div>
-      </div>
-      <!-- End Sticky Header Container -->
-
-      <!-- Images Rows -->
-      <template v-for="type in imageTypes" :key="type.key">
-        <!-- Label Row -->
-        <div class="col-span-2 text-center py-2 border-b border-gray-200 flex items-center justify-center gap-3">
-          <h3 class="text-lg font-medium text-gray-800">{{ type.label }}</h3>
-          <button 
-            @click="openComparison(type.key)"
-            class="p-1.5 bg-gray-100 text-gray-700 rounded hover:bg-gray-200 hover:text-gray-900 transition-colors"
-            title="Compare Before/After"
-          >
-            <ChevronsLeftRight class="w-4 h-4" />
-          </button>
-        </div>
-
-        <!-- Image 1 -->
-        <RatioImage 
-          :src="session1 && images[session1.id]?.[type.key] ? images[session1.id][type.key] : null" 
-          :crop="getParsedCrop(session1, type.key)"
-          empty-text="No Image" 
-          container-class="w-full cursor-pointer hover:ring-2 hover:ring-blue-500 transition-all" 
-          @click="session1 && openCropper(session1.id, type.key)"
-        />
-
-        <!-- Image 2 -->
-        <RatioImage 
-          :src="session2 && images[session2.id]?.[type.key] ? images[session2.id][type.key] : null" 
-          :crop="getParsedCrop(session2, type.key)"
-          empty-text="No Image" 
-          container-class="w-full cursor-pointer hover:ring-2 hover:ring-blue-500 transition-all" 
-          @click="session2 && openCropper(session2.id, type.key)"
-        />
-      </template>
-
-      <!-- Data Comparison -->
-      <div class="col-span-2 mt-8">
-        <h3 class="text-xl font-bold text-gray-900 mb-4 border-b border-gray-200 pb-2">Data Comparison</h3>
+    <!-- Main Content Area -->
+    <div class="flex-1 overflow-hidden relative flex items-center">
+        <div v-if="loading" class="w-full text-center text-gray-500">Loading...</div>
+        <div v-else-if="error" class="w-full text-center text-red-500">{{ error }}</div>
         
-        <div class="grid grid-cols-2 gap-8">
-          <!-- Session 1 Data -->
-          <div class="bg-gray-100 rounded-lg border border-gray-200 p-4 space-y-3">
-             <div class="flex justify-between items-center border-b border-gray-300 pb-2">
-               <span class="text-gray-600 font-medium">Height</span>
-               <span class="text-gray-900 font-bold">{{ session1?.height ? session1.height + ' cm' : '-' }}</span>
-             </div>
-             <div class="flex justify-between items-center border-b border-gray-300 pb-2">
-               <span class="text-gray-600 font-medium">Weight</span>
-               <span class="text-gray-900 font-bold">{{ session1?.weight ? session1.weight + ' kg' : '-' }}</span>
-             </div>
-             <div class="pt-1">
-               <span class="text-gray-600 font-medium block mb-1">Notes</span>
-               <div class="text-gray-800 text-sm bg-white p-2 rounded border border-gray-300 min-h-[3rem] whitespace-pre-wrap">{{ session1?.notes || '-' }}</div>
-             </div>
-          </div>
+        <div v-else class="w-full h-full overflow-auto">
+            <div class="min-w-full min-h-full w-fit flex justify-center items-start p-8 gap-6">
+            
+            <!-- Add Older Button -->
+            <div class="h-full flex items-center flex-shrink-0 sticky left-0 z-10 top-1/2 -translate-y-1/2">
+                 <button 
+                    @click="addOlder"
+                    :disabled="!canAddOlder"
+                    class="h-12 w-12 rounded-full bg-white border border-gray-200 shadow-sm flex items-center justify-center text-gray-600 hover:text-blue-600 hover:border-blue-300 transition-all disabled:opacity-30 disabled:cursor-not-allowed disabled:hover:border-gray-200 disabled:hover:text-gray-600"
+                    title="Add Previous Session"
+                >
+                    <Plus class="h-6 w-6" />
+                </button>
+            </div>
 
-          <!-- Session 2 Data -->
-          <div class="bg-gray-100 rounded-lg border border-gray-200 p-4 space-y-3">
-             <div class="flex justify-between items-center border-b border-gray-300 pb-2">
-               <span class="text-gray-600 font-medium">Height</span>
-               <span class="text-gray-900 font-bold">{{ session2?.height ? session2.height + ' cm' : '-' }}</span>
-             </div>
-             <div class="flex justify-between items-center border-b border-gray-300 pb-2">
-               <span class="text-gray-600 font-medium">Weight</span>
-               <span class="text-gray-900 font-bold">{{ session2?.weight ? session2.weight + ' kg' : '-' }}</span>
-             </div>
-             <div class="pt-1">
-               <span class="text-gray-600 font-medium block mb-1">Notes</span>
-               <div class="text-gray-800 text-sm bg-white p-2 rounded border border-gray-300 min-h-[3rem] whitespace-pre-wrap">{{ session2?.notes || '-' }}</div>
-             </div>
-          </div>
+            <!-- Columns -->
+            <CompareSessionColumn 
+                v-for="(session, index) in visibleSessions" 
+                :key="session.id"
+                :session="session"
+                :all-sessions="allSessions"
+                :older-limit="index > 0 ? visibleSessions[index - 1].session_number : null"
+                :newer-limit="index < visibleSessions.length - 1 ? visibleSessions[index + 1].session_number : null"
+                :images="imageCache[session.id] || {}"
+                :can-remove="visibleSessions.length > 1"
+                :is-select-mode="isSelectMode"
+                :selected-keys="selectedKeys"
+                @update:session="s => handleUpdateSession(index, s)"
+                @view-image="type => openImageModal(session.id, type)"
+                @open-cropper="type => handleOpenCropper(session.id, type)"
+                @select-image="type => handleSelectImage(session.id, type)"
+                @remove="handleRemoveSession(index)"
+            />
+
+            <!-- Add Newer Button -->
+            <div class="h-full flex items-center flex-shrink-0 sticky right-0 z-10 top-1/2 -translate-y-1/2">
+                <button 
+                    @click="addNewer"
+                    :disabled="!canAddNewer"
+                    class="h-12 w-12 rounded-full bg-white border border-gray-200 shadow-sm flex items-center justify-center text-gray-600 hover:text-blue-600 hover:border-blue-300 transition-all disabled:opacity-30 disabled:cursor-not-allowed disabled:hover:border-gray-200 disabled:hover:text-gray-600"
+                    title="Add Next Session"
+                >
+                    <Plus class="h-6 w-6" />
+                </button>
+            </div>
+
+            </div>
         </div>
-      </div>
     </div>
 
     <ImageCropper 
       :show="showCropper"
-      :image-src="(activeCropSessionId && activeCropType) ? images[activeCropSessionId]?.[activeCropType] : null"
+      :image-src="(activeCropSessionId && activeCropType) ? imageCache[activeCropSessionId]?.[activeCropType] : null"
       :initial-crop="activeInitialCrop"
       :image-type="activeCropType"
       @close="showCropper = false"
       @save="handleCropSave"
     />
 
+    <ImageModal
+        :show="showImageModal"
+        :image-src="(activeCropSessionId && activeCropType) ? imageCache[activeCropSessionId]?.[activeCropType] : null"
+        :crop="activeInitialCrop"
+        :can-crop="true"
+        @close="showImageModal = false"
+        @crop="handleCropFromModal"
+    />
     <ImageComparisonModal
       :show="showComparisonModal"
-      :title="imageTypes.find(t => t.key === activeComparisonType)?.label || ''"
-      :image1-src="(session1 && activeComparisonType) ? images[session1.id]?.[activeComparisonType] : null"
-      :image2-src="(session2 && activeComparisonType) ? images[session2.id]?.[activeComparisonType] : null"
-      :crop1="getParsedCrop(session1, activeComparisonType || '')"
-      :crop2="getParsedCrop(session2, activeComparisonType || '')"
-      :label1="session1 ? `Session #${session1.session_number}` : 'Before'"
-      :label2="session2 ? `Session #${session2.session_number}` : 'After'"
-      @close="showComparisonModal = false"
+      :title="customComparison ? 'Custom Comparison' : (imageTypes.find(t => t.key === activeComparisonType)?.label || '')"
+      :image1-src="customComparison ? customComparison.img1?.src : ((session1 && activeComparisonType) ? imageCache[session1.id]?.[activeComparisonType] : null)"
+      :image2-src="customComparison ? customComparison.img2?.src : ((session2 && activeComparisonType) ? imageCache[session2.id]?.[activeComparisonType] : null)"
+      :crop1="customComparison ? customComparison.img1?.crop : getParsedCrop(session1, activeComparisonType || '')"
+      :crop2="customComparison ? customComparison.img2?.crop : getParsedCrop(session2, activeComparisonType || '')"
+      :label1="customComparison ? customComparison.img1?.label : (session1 ? `Session #${session1.session_number}` : 'Before')"
+      :label2="customComparison ? customComparison.img2?.label : (session2 ? `Session #${session2.session_number}` : 'After')"
+      @close="() => { showComparisonModal = false; customComparison = null; exitSelectMode() }"
     />
+
+    <!-- Floating Action Button for Select Mode -->
+    <div class="fixed bottom-8 left-8 z-40">
+        <button 
+            @click="toggleSelectMode"
+            class="h-14 w-14 rounded-full shadow-lg flex items-center justify-center transition-all duration-300 transform hover:scale-105 active:scale-95"
+            :class="isSelectMode ? 'bg-blue-600 text-white' : 'bg-white text-gray-700 hover:bg-gray-50'"
+            title="Toggle Selection Mode"
+        >
+            <X v-if="isSelectMode" class="h-6 w-6" />
+            <CheckSquare v-else class="h-6 w-6" />
+        </button>
+    </div>
+
+    <!-- Floating Selection Card -->
+    <div v-if="isSelectMode" class="fixed bottom-8 left-1/2 -translate-x-1/2 z-40 bg-white rounded-xl shadow-xl border border-gray-200 p-3 flex items-center gap-4 animate-in slide-in-from-bottom-4 fade-in duration-300">
+        <div class="flex gap-2">
+            <div v-for="(img, idx) in selectedImages" :key="img.key" class="relative h-12 w-12 rounded overflow-hidden border border-gray-200 group">
+                <img :src="img.src" class="h-full w-full object-cover" />
+                <div class="absolute inset-0 bg-black/20 group-hover:bg-black/0 transition-colors"></div>
+            </div>
+            <!-- Placeholders -->
+            <div v-if="selectedImages.length < 2" class="h-12 w-12 rounded border-2 border-dashed border-gray-300 flex items-center justify-center text-gray-400 bg-gray-50">
+                <span class="text-xs">{{ selectedImages.length + 1 }}</span>
+            </div>
+        </div>
+
+        <div class="h-8 w-px bg-gray-200"></div>
+
+        <div class="flex items-center gap-2">
+            <button 
+                @click="handleCompareSelected"
+                :disabled="selectedImages.length !== 2"
+                class="px-4 py-2 rounded-lg bg-blue-600 text-white text-sm font-medium hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+            >
+                <Check class="w-4 h-4" />
+                Compare
+            </button>
+            <button 
+                @click="exitSelectMode"
+                class="px-3 py-2 rounded-lg hover:bg-gray-100 text-gray-600 text-sm font-medium transition-colors"
+            >
+                Cancel
+            </button>
+        </div>
+    </div>
   </div>
 </template>
