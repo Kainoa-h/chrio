@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, onMounted } from "vue";
 import { useRoute, useRouter } from "vue-router";
-import { commands, type Session } from "@/bindings";
+import { commands, type Session, type Client } from "@/bindings";
 import {
   useVueTable,
   FlexRender,
@@ -26,6 +26,7 @@ const sessions = ref<Session[]>([]);
 const loading = ref(true);
 const error = ref<string | null>(null);
 const selectedSessionIds = ref<Array<number>>(new Array());
+const client = ref<Client | null>(null);
 
 const columnHelper = createColumnHelper<Session>();
 
@@ -119,19 +120,19 @@ const columns = [
         
         const buttons = [];
 
-        buttons.push(h('button', { 
-            onClick: () => router.push({ name: 'edit-session', params: { id: clientId, sessionId: currentId } }),
-            class: 'text-gray-600 hover:text-gray-900 mr-3',
-            title: 'Edit Session'
-        }, [h(Edit, { class: "w-4 h-4" })]));
-
         if (hasPrevious) {
              buttons.push(h('button', { 
                 onClick: () => compareSingle(info.row.original),
-                class: 'text-blue-400 hover:text-blue-300 flex items-center gap-1 text-xs font-medium',
+                class: 'text-blue-400 hover:text-blue-300 flex items-center gap-1 text-xs font-medium mr-3',
                 title: 'Compare with previous'
             }, [h(GitCompare, { class: "w-4 h-4" }), 'Compare Prev']));
         }
+
+        buttons.push(h('button', { 
+            onClick: () => router.push({ name: 'edit-session', params: { id: clientId, sessionId: currentId } }),
+            class: 'text-gray-600 hover:text-gray-900',
+            title: 'Edit Session'
+        }, [h(Edit, { class: "w-4 h-4" })]));
 
         return h('div', { class: 'flex items-center' }, buttons);
     },
@@ -148,6 +149,11 @@ const table = useVueTable({
 
 onMounted(async () => {
   try {
+    const clientResult = await commands.getClients();
+    if (clientResult.status === "ok") {
+      client.value = clientResult.data.find(c => c.id === clientId) || null;
+    }
+
     const result = await commands.getClientSessions(clientId);
     if (result.status === "ok") {
       sessions.value = result.data;
@@ -173,7 +179,7 @@ onMounted(async () => {
             >
             <ArrowLeft class="h-6 w-6 text-gray-600" />
             </button>
-            <h1 class="text-3xl font-bold text-gray-900">Client Sessions</h1>
+              <h1 class="text-3xl font-bold text-gray-900">{{ client?.firstname }} {{ client?.lastname }}'s Sessions</h1>
         </div>
         
         <button 
