@@ -215,12 +215,12 @@ onMounted(() => {
       <h1 class="text-3xl font-bold text-gray-900">{{ isEditing ? 'Edit Session #' + currentSessionNumber : 'Add New Session' }} for {{ client?.firstname || 'Client' }}</h1>
     </div>
 
-    <form @submit.prevent="handleAddSession" class="bg-gray-950 p-6 rounded-md shadow-sm space-y-4 border border-gray-700">
+    <form @submit.prevent="handleAddSession" class="bg-white p-6 rounded-md shadow-sm space-y-4 border border-gray-200">
 
       <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
         <!-- Anterior -->
         <div>
-          <label class="block text-sm font-medium text-gray-300 mb-2">Anterior</label>
+          <label class="block text-sm font-medium text-gray-700 mb-2">Anterior</label>
           <RatioImage 
             :src="imagePreviews.anterior" 
             :crop="cropData.anterior"
@@ -251,7 +251,7 @@ onMounted(() => {
                  <button 
                   type="button"
                   @click.stop="openCamera('anterior')"
-                  class="px-4 py-2 bg-gray-800 border border-gray-600 rounded-lg hover:bg-gray-700 text-gray-300 flex items-center gap-2"
+                  class="px-4 py-2 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 text-gray-700 flex items-center gap-2 shadow-sm"
                 >
                   <Camera class="h-5 w-5" /> Take Photo
                 </button>
@@ -262,7 +262,7 @@ onMounted(() => {
 
         <!-- Posterior -->
         <div>
-          <label class="block text-sm font-medium text-gray-300 mb-2">Posterior</label>
+          <label class="block text-sm font-medium text-gray-700 mb-2">Posterior</label>
           <RatioImage 
             :src="imagePreviews.posterior" 
             :crop="cropData.posterior"
@@ -293,7 +293,7 @@ onMounted(() => {
                  <button 
                   type="button"
                   @click.stop="openCamera('posterior')"
-                  class="px-4 py-2 bg-gray-800 border border-gray-600 rounded-lg hover:bg-gray-700 text-gray-300 flex items-center gap-2"
+                  class="px-4 py-2 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 text-gray-700 flex items-center gap-2 shadow-sm"
                 >
                   <Camera class="h-5 w-5" /> Take Photo
                 </button>
@@ -304,7 +304,7 @@ onMounted(() => {
 
         <!-- Right Lateral -->
         <div>
-          <label class="block text-sm font-medium text-gray-300 mb-2">Right Lateral</label>
+          <label class="block text-sm font-medium text-gray-700 mb-2">Right Lateral</label>
           <RatioImage 
             :src="imagePreviews.right_lateral" 
             :crop="cropData.right_lateral"
@@ -335,7 +335,7 @@ onMounted(() => {
                  <button 
                   type="button"
                   @click.stop="openCamera('right_lateral')"
-                  class="px-4 py-2 bg-gray-800 border border-gray-600 rounded-lg hover:bg-gray-700 text-gray-300 flex items-center gap-2"
+                  class="px-4 py-2 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 text-gray-700 flex items-center gap-2 shadow-sm"
                 >
                   <Camera class="h-5 w-5" /> Take Photo
                 </button>
@@ -346,7 +346,7 @@ onMounted(() => {
 
         <!-- Left Lateral -->
         <div>
-          <label class="block text-sm font-medium text-gray-300 mb-2">Left Lateral</label>
+          <label class="block text-sm font-medium text-gray-700 mb-2">Left Lateral</label>
           <RatioImage 
             :src="imagePreviews.left_lateral" 
             :crop="cropData.left_lateral"
@@ -377,7 +377,7 @@ onMounted(() => {
                  <button 
                   type="button"
                   @click.stop="openCamera('left_lateral')"
-                  class="px-4 py-2 bg-gray-800 border border-gray-600 rounded-lg hover:bg-gray-700 text-gray-300 flex items-center gap-2"
+                  class="px-4 py-2 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 text-gray-700 flex items-center gap-2 shadow-sm"
                 >
                   <Camera class="h-5 w-5" /> Take Photo
                 </button>
@@ -389,34 +389,34 @@ onMounted(() => {
 
       <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div>
-          <label for="height" class="block text-sm font-medium text-gray-300 mb-1">Height (cm)</label>
+          <label for="height" class="block text-sm font-medium text-gray-700 mb-1">Height (cm)</label>
           <input 
             id="height"
             v-model.number="newSession.height" 
             type="number"
             step="0.01"
-            class="w-full rounded-lg border border-gray-700 bg-gray-900 px-3 py-2 focus:ring-1 focus:ring-blue-500 focus:border-blue-500 text-gray-200"
+            class="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 focus:ring-1 focus:ring-blue-500 focus:border-blue-500 text-gray-900 shadow-sm"
           />
         </div>
         <div>
-          <label for="weight" class="block text-sm font-medium text-gray-300 mb-1">Weight (kg)</label>
+          <label for="weight" class="block text-sm font-medium text-gray-700 mb-1">Weight (kg)</label>
           <input 
             id="weight"
             v-model.number="newSession.weight" 
             type="number"
             step="0.01"
-            class="w-full rounded-lg border border-gray-700 bg-gray-900 px-3 py-2 focus:ring-1 focus:ring-blue-500 focus:border-blue-500 text-gray-200"
+            class="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 focus:ring-1 focus:ring-blue-500 focus:border-blue-500 text-gray-900 shadow-sm"
           />
         </div>
       </div>
 
       <div>
-        <label for="notes" class="block text-sm font-medium text-gray-300 mb-1">Notes</label>
+        <label for="notes" class="block text-sm font-medium text-gray-700 mb-1">Notes</label>
         <textarea 
           id="notes"
           v-model="newSession.notes" 
           rows="4"
-          class="w-full rounded-lg border border-gray-700 bg-gray-900 px-3 py-2 focus:ring-1 focus:ring-blue-500 focus:border-blue-500 text-gray-200"
+          class="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 focus:ring-1 focus:ring-blue-500 focus:border-blue-500 text-gray-900 shadow-sm"
         ></textarea>
       </div>
 
@@ -428,7 +428,7 @@ onMounted(() => {
         <button 
           type="button" 
           @click="router.push({ name: 'client-sessions', params: { id: clientId } })"
-          class="px-4 py-2 text-sm font-medium text-gray-300 bg-gray-800 border border-gray-700 rounded-lg hover:bg-gray-700 transition-colors"
+          class="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors shadow-sm"
         >
           Cancel
         </button>
