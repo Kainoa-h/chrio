@@ -1,6 +1,5 @@
 import { createRouter, createWebHashHistory } from 'vue-router';
 import HomeView from '../views/HomeView.vue';
-import AboutView from '../views/AboutView.vue';
 import ClientSessionsView from '../views/ClientSessionsView.vue';
 import AddSessionView from '../views/AddSessionView.vue';
 import CompareSessionsView from '../views/CompareSessionsView.vue';

@@ -1,6 +1,6 @@
 [package]
 name = "chrio"
-version = "0.1.0"
+version = "0.1.1"
 description = "Simple Tauri app for managing and comparing physio photos"
 authors = ["Kainoa"]
 edition = "2021"
@@ -30,4 +30,3 @@ tokio = { version = "1", features = ["full"] }
 chrono = { version = "0.4", features = ["serde"] }
 base64 = "0.22.1"
 tauri-plugin-fs = "2.4.4"
-

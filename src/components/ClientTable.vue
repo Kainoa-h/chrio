@@ -18,7 +18,7 @@ import {
 import type { Client } from "@/bindings";
 import { h, ref } from "vue";
 import { Search, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, Edit, Plus } from "lucide-vue-next";
-import { RouterLink, useRouter } from "vue-router";
+import { useRouter } from "vue-router";
 
 const props = defineProps<{
   clients: Client[];

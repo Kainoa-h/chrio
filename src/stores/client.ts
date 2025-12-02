@@ -1,4 +1,3 @@
-import { ref } from 'vue'
 import { defineStore } from "pinia";
 import { commands, type Client, type CreateClientDto, type UpdateClientDto } from "../bindings";
 

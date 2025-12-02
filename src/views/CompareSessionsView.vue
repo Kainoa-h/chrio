@@ -102,24 +102,6 @@ function handleSelectImage(sessionId: number, type: string) {
     selectedImages.value.push(newItem);
 }
 
-function compareSelected() {
-    if (selectedImages.value.length !== 2) return;
-    // We need to adapt the ImageComparisonModal props or reuse logic
-    // The current modal expects `session1` and `session2` refs implicitly for labels, 
-    // but we can just pass props directly.
-    // Wait, the modal component logic in this file relies on `session1` and `session2` refs for labels?
-    // Let's check the template usage of ImageComparisonModal.
-    // It uses specific props. We can just use a separate "Custom Compare" state.
-    
-    // Actually, ImageComparisonModal is generic enough.
-    // We just need to set the props.
-    
-    showComparisonModal.value = true;
-    // We will need a way to tell the modal WHAT to show.
-    // The current implementation binds directly to `session1` and `session2`.
-    // We should refactor `activeComparisonType` to support this custom mode OR add new state.
-}
-
 // Custom Comparison State to override the default row-based comparison
 const customComparison = ref<{
     img1: { src: string, crop: any, label: string } | null,
@@ -155,11 +137,6 @@ const visibleSessions = computed(() => {
     .map(id => allSessions.value.find(s => s.id === id))
     .filter((s): s is Session => !!s);
 });
-
-// Helper to find session by ID
-function getSession(id: number) {
-    return allSessions.value.find(s => s.id === id);
-}
 
 async function loadImage(sessionId: number, type: string, path: string | null) {
   if (!path) return;
