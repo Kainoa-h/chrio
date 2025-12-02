@@ -1,5 +1,7 @@
 # Chrio
 
+*This application was largely vibecoded with Google Gemini 3 & 2.5*
+
 A local-first, application for chiropractic and physical therapy image comparison and session tracking.
 
 **Chrio** is designed to help practitioners securely document patient progress. It allows you to store client profiles, log sessions with notes and biometric data (height/weight), and importantly, capture and compare clinical images (anterior, posterior, lateral views) side-by-side with cropping tools.
@@ -14,9 +16,12 @@ A local-first, application for chiropractic and physical therapy image compariso
 
 ## Tech Stack
 
-* **Frontend:** [Vue 3](https://vuejs.org/) + [TypeScript](https://www.typescriptlang.org/) + [Tailwind CSS](https://tailwindcss.com/)
+* **Frontend:** [Vue 3](https://vuejs.org/) + [TypeScript](https://www.typescriptlang.org/) + [Tailwind CSS](https://tailwindcss.com/) + [Shadcn Vue](https://www.shadcn-vue.com/) (components)
+
 * **Backend:** [Rust](https://www.rust-lang.org/) (via [Tauri](https://tauri.app/))
+
 * **Database:** [SQLite](https://www.sqlite.org/index.html) (via [SQLx](https://github.com/launchbadge/sqlx))
+
 * **Icons:** [Lucide](https://lucide.dev/)
 
 ## Development Setup
@@ -42,4 +47,3 @@ You are free to use, copy, modify, and distribute this software for any purpose 
 
 ---
 *Provided "as is" without warranty of any kind. For clinical documentation purposes only.*
-
