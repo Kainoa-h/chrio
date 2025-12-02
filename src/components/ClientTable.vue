@@ -17,8 +17,8 @@ import {
 } from "@/components/ui/table";
 import type { Client } from "@/bindings";
 import { h, ref } from "vue";
-import { Search, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, Edit } from "lucide-vue-next";
-import { RouterLink } from "vue-router";
+import { Search, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, Edit, Plus } from "lucide-vue-next";
+import { RouterLink, useRouter } from "vue-router";
 
 const props = defineProps<{
   clients: Client[];
@@ -29,6 +29,8 @@ const emit = defineEmits<{
 }>();
 
 const globalFilter = ref("");
+
+const router = useRouter();
 
 const columnHelper = createColumnHelper<Client>();
 
@@ -67,14 +69,21 @@ const columns = [
     header: "Actions",
     cell: (info) => h('div', { class: 'flex items-center gap-4' }, [
       h('button', {
-        onClick: () => emit('edit', info.row.original),
+        onClick: (e) => {
+          e.stopPropagation();
+          router.push({ name: 'add-session', params: { id: info.row.original.id } });
+        },
+        class: 'bg-green-500 text-white p-2 rounded-lg hover:bg-green-600 transition-colors',
+        title: 'New Session'
+      }, h(Plus, { class: 'w-4 h-4'})),
+      h('button', {
+        onClick: (e) => {
+          e.stopPropagation();
+          emit('edit', info.row.original);
+        },
         class: 'text-gray-500 hover:text-blue-600 transition-colors',
         title: 'Edit Client'
       }, h(Edit, { class: 'w-4 h-4' })),
-      h(RouterLink, { 
-        to: { name: 'client-sessions', params: { id: info.row.original.id } },
-        class: 'font-medium text-blue-600 hover:underline' 
-      }, () => 'Sessions')
     ]),
   }),
 ];
@@ -138,7 +147,12 @@ const table = useVueTable({
           </TableHeader>
           <TableBody>
             <template v-if="table.getRowModel().rows?.length">
-              <TableRow v-for="row in table.getRowModel().rows" :key="row.id" class="transition-colors hover:bg-gray-50">
+              <TableRow 
+                v-for="row in table.getRowModel().rows" 
+                :key="row.id" 
+                class="transition-colors hover:bg-gray-50 cursor-pointer"
+                @click="router.push({ name: 'client-sessions', params: { id: row.original.id } })"
+              >
                 <TableCell v-for="cell in row.getVisibleCells()" :key="cell.id" class="text-gray-800">
                   <FlexRender
                     :render="cell.column.columnDef.cell"
