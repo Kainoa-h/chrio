@@ -135,14 +135,20 @@ const columns = [
 
         if (hasPrevious) {
              buttons.push(h('button', { 
-                onClick: () => compareSingle(info.row.original),
+                onClick: (e) => {
+                  e.stopPropagation();
+                  compareSingle(info.row.original);
+                },
                 class: 'text-blue-400 hover:text-blue-300 flex items-center gap-1 text-xs font-medium mr-3',
                 title: 'Compare with previous'
             }, [h(GitCompare, { class: "w-4 h-4" }), 'Compare Prev']));
         }
 
         buttons.push(h('button', { 
-            onClick: () => router.push({ name: 'edit-session', params: { id: clientId, sessionId: currentId } }),
+            onClick: (e) => {
+              e.stopPropagation();
+              router.push({ name: 'edit-session', params: { id: clientId, sessionId: currentId } });
+            },
             class: 'text-gray-600 hover:text-gray-900',
             title: 'Edit Session'
         }, [h(Edit, { class: "w-4 h-4" })]));
@@ -243,7 +249,12 @@ onMounted(async () => {
             </TableHeader>
             <TableBody>
               <template v-if="table.getRowModel().rows?.length">
-                <TableRow v-for="row in table.getRowModel().rows" :key="row.id" class="transition-colors hover:bg-gray-50">
+                <TableRow 
+                  v-for="row in table.getRowModel().rows" 
+                  :key="row.id" 
+                  class="transition-colors hover:bg-gray-50 cursor-pointer"
+                  @click="toggleSelection(row.original.id)"
+                >
                   <TableCell v-for="cell in row.getVisibleCells()" :key="cell.id" class="text-gray-800">
                     <FlexRender
                       :render="cell.column.columnDef.cell"
