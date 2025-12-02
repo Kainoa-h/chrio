@@ -1,5 +1,5 @@
 use crate::db::DbState;
-use crate::models::{Client, CreateClientDto, CreateSessionDto, Session};
+use crate::models::{Client, CreateClientDto, CreateSessionDto, Session, UpdateClientDto};
 use base64::{engine::general_purpose, Engine as _};
 use specta::specta;
 use std::fs;
@@ -15,6 +15,14 @@ pub async fn get_clients(db: State<'_, DbState>) -> Result<Vec<Client>, String> 
 #[specta]
 pub async fn add_client(db: State<'_, DbState>, client: CreateClientDto) -> Result<i32, String> {
     Client::create(&*db, client)
+        .await
+        .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+#[specta]
+pub async fn update_client(db: State<'_, DbState>, client: UpdateClientDto) -> Result<(), String> {
+    Client::update(&*db, client)
         .await
         .map_err(|e| e.to_string())
 }

@@ -21,6 +21,15 @@ pub struct CreateClientDto {
     pub sex: String,
 }
 
+#[derive(Debug, Serialize, Deserialize, Type)]
+pub struct UpdateClientDto {
+    pub id: i32,
+    pub firstname: String,
+    pub lastname: String,
+    pub dob: String,
+    pub sex: String,
+}
+
 impl Client {
     pub async fn find_all(pool: &SqlitePool) -> Result<Vec<Self>, sqlx::Error> {
         sqlx::query_as!(
@@ -47,6 +56,21 @@ impl Client {
         .last_insert_rowid();
 
         Ok(id as i32)
+    }
+
+    pub async fn update(pool: &SqlitePool, dto: UpdateClientDto) -> Result<(), sqlx::Error> {
+        sqlx::query!(
+            "UPDATE clients SET firstname = ?, lastname = ?, dob = ?, sex = ? WHERE id = ?",
+            dto.firstname,
+            dto.lastname,
+            dto.dob,
+            dto.sex,
+            dto.id
+        )
+        .execute(pool)
+        .await?;
+
+        Ok(())
     }
 }
 

@@ -12,11 +12,6 @@ const routes = [
     component: HomeView,
   },
   {
-    path: '/about',
-    name: 'about',
-    component: AboutView,
-  },
-  {
     path: '/client/:id/sessions',
     name: 'client-sessions',
     component: ClientSessionsView,

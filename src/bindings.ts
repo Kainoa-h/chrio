@@ -21,6 +21,14 @@ async addClient(client: CreateClientDto) : Promise<Result<number, string>> {
     else return { status: "error", error: e  as any };
 }
 },
+async updateClient(client: UpdateClientDto) : Promise<Result<null, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("update_client", { client }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
 async getClientSessions(clientId: number) : Promise<Result<Session[], string>> {
     try {
     return { status: "ok", data: await TAURI_INVOKE("get_client_sessions", { clientId }) };
@@ -85,6 +93,7 @@ export type Client = { id: number; firstname: string; lastname: string; dob: str
 export type CreateClientDto = { firstname: string; lastname: string; dob: string; sex: string }
 export type CreateSessionDto = { client_id: number; height: number | null; weight: number | null; anterior: string | null; posterior: string | null; right_lateral: string | null; left_lateral: string | null; notes: string | null; anterior_crop: string | null; posterior_crop: string | null; right_lateral_crop: string | null; left_lateral_crop: string | null }
 export type Session = { id: number; client_id: number; datetime: string; session_number: number; height: number | null; weight: number | null; anterior: string | null; posterior: string | null; right_lateral: string | null; left_lateral: string | null; notes: string | null; anterior_crop: string | null; posterior_crop: string | null; right_lateral_crop: string | null; left_lateral_crop: string | null }
+export type UpdateClientDto = { id: number; firstname: string; lastname: string; dob: string; sex: string }
 
 /** tauri-specta globals **/
 

@@ -16,11 +16,15 @@ import {
 } from "@/components/ui/table";
 import type { Client } from "@/bindings";
 import { h, ref } from "vue";
-import { Search } from "lucide-vue-next";
+import { Search, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, Edit } from "lucide-vue-next";
 import { RouterLink } from "vue-router";
 
 const props = defineProps<{
   clients: Client[];
+}>();
+
+const emit = defineEmits<{
+  (e: 'edit', client: Client): void
 }>();
 
 const globalFilter = ref("");
@@ -60,10 +64,17 @@ const columns = [
   columnHelper.display({
     id: "actions",
     header: "Actions",
-    cell: (info) => h(RouterLink, { 
-      to: { name: 'client-sessions', params: { id: info.row.original.id } },
-      class: 'font-medium text-blue-600 hover:underline' 
-    }, () => 'Sessions'),
+    cell: (info) => h('div', { class: 'flex items-center gap-4' }, [
+      h('button', {
+        onClick: () => emit('edit', info.row.original),
+        class: 'text-gray-500 hover:text-blue-600 transition-colors',
+        title: 'Edit Client'
+      }, h(Edit, { class: 'w-4 h-4' })),
+      h(RouterLink, { 
+        to: { name: 'client-sessions', params: { id: info.row.original.id } },
+        class: 'font-medium text-blue-600 hover:underline' 
+      }, () => 'Sessions')
+    ]),
   }),
 ];
 

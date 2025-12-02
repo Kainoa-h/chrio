@@ -11,6 +11,7 @@ pub fn run() {
         .commands(collect_commands![
             commands::get_clients,
             commands::add_client,
+            commands::update_client,
             commands::get_client_sessions,
             commands::add_session,
             commands::save_image,

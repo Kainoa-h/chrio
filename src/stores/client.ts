@@ -1,40 +1,61 @@
 import { ref } from 'vue'
-import { defineStore } from 'pinia'
-import { commands, type Client, type CreateClientDto } from '@/bindings'
+import { defineStore } from "pinia";
+import { commands, type Client, type CreateClientDto, type UpdateClientDto } from "../bindings";
 
-export const useClientStore = defineStore('client', () => {
-  const clients = ref<Client[]>([])
-  const error = ref<string | null>(null)
-
-  async function loadClients() {
-    try {
-      const result = await commands.getClients()
-      if (result.status === "ok") {
-         clients.value = result.data
-      } else {
-         error.value = result.error
-         console.error('Failed to load clients:', result.error)
+export const useClientStore = defineStore("client", {
+  state: () => ({
+    clients: [] as Client[],
+    loading: false,
+    error: null as string | null,
+  }),
+  actions: {
+    async loadClients() {
+      this.loading = true;
+      this.error = null;
+      try {
+        const result = await commands.getClients();
+        if (result.status === "ok") {
+          this.clients = result.data;
+        } else {
+          this.error = result.error;
+        }
+      } catch (e: any) {
+        this.error = e.message || "Failed to load clients";
+      } finally {
+        this.loading = false;
       }
-    } catch (e: any) {
-      error.value = e.message
-      console.error('Failed to load clients:', e)
-    }
-  }
-
-  async function addClient(client: CreateClientDto) {
-    try {
-      const result = await commands.addClient(client)
-      if (result.status === "ok") {
-        await loadClients()
-      } else {
-        error.value = result.error
-        console.error('Failed to add client:', result.error)
+    },
+    async addClient(client: CreateClientDto) {
+      this.loading = true;
+      this.error = null;
+      try {
+        const result = await commands.addClient(client);
+        if (result.status === "ok") {
+          await this.loadClients();
+        } else {
+          this.error = result.error;
+        }
+      } catch (e: any) {
+        this.error = e.message || "Failed to add client";
+      } finally {
+        this.loading = false;
       }
-    } catch (e: any) {
-      error.value = e.message
-      console.error('Failed to add client:', e)
-    }
-  }
-
-  return { clients, error, loadClients, addClient }
-})
+    },
+    async updateClient(client: UpdateClientDto) {
+      this.loading = true;
+      this.error = null;
+      try {
+        const result = await commands.updateClient(client);
+        if (result.status === "ok") {
+          await this.loadClients();
+        } else {
+          this.error = result.error;
+        }
+      } catch (e: any) {
+        this.error = e.message || "Failed to update client";
+      } finally {
+        this.loading = false;
+      }
+    },
+  },
+});
