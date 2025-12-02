@@ -25,7 +25,7 @@ const clientId = Number(route.params.id);
 const sessions = ref<Session[]>([]);
 const loading = ref(true);
 const error = ref<string | null>(null);
-const selectedSessionIds = ref<Set<number>>(new Set());
+const selectedSessionIds = ref<Array<number>>(new Array());
 
 const columnHelper = createColumnHelper<Session>();
 
@@ -40,13 +40,16 @@ function formatDate(dateString: string) {
 }
 
 function toggleSelection(id: number) {
-  const newSet = new Set(selectedSessionIds.value);
-  if (newSet.has(id)) {
-    newSet.delete(id);
-  } else {
-    newSet.add(id);
+  const arr = selectedSessionIds.value;
+  const index = arr.indexOf(id);
+  if (arr.includes(id)) {
+    arr.splice(index, 1);
+    return;
   }
-  selectedSessionIds.value = newSet;
+  if (arr.length === 2) {
+    arr.pop(1);
+  }
+  arr.push(id);
 }
 
 function compareSingle(currentSession: Session) {
@@ -67,9 +70,8 @@ function compareSingle(currentSession: Session) {
 }
 
 function compareSelected() {
-  if (selectedSessionIds.value.size !== 2) return;
-  const ids = Array.from(selectedSessionIds.value);
-  const selected = sessions.value.filter(s => ids.includes(s.id));
+  if (selectedSessionIds.value.length !== 2) return;
+  const selected = sessions.value.filter(s => selectedSessionIds.value.includes(s.id));
   // Sort by session_number asc (older first)
   selected.sort((a, b) => a.session_number - b.session_number);
   
@@ -86,7 +88,7 @@ const columns = [
     header: () => "Select",
     cell: (info) => h('input', { 
       type: 'checkbox', 
-      checked: selectedSessionIds.value.has(info.row.original.id),
+      checked: selectedSessionIds.value.includes(info.row.original.id),
       onChange: () => toggleSelection(info.row.original.id),
       class: "rounded border-gray-300 bg-white text-blue-600 focus:ring-blue-500"
     }),
@@ -165,7 +167,7 @@ onMounted(async () => {
         </div>
         
         <button 
-            v-if="selectedSessionIds.size === 2"
+            v-if="selectedSessionIds.length === 2"
             @click="compareSelected"
             class="bg-indigo-600 hover:bg-indigo-700 text-white px-3 py-1.5 rounded-lg shadow-sm transition-colors flex items-center gap-2 text-sm"
         >
