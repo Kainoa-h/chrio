@@ -73,7 +73,7 @@ const columns = [
           e.stopPropagation();
           router.push({ name: 'add-session', params: { id: info.row.original.id } });
         },
-        class: 'bg-green-500 text-white p-2 rounded-lg hover:bg-green-600 transition-colors',
+        class: 'bg-blue-500 text-white p-2 rounded-lg hover:bg-blue-600 transition-colors',
         title: 'New Session'
       }, h(Plus, { class: 'w-4 h-4'})),
       h('button', {
