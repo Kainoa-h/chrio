@@ -22,7 +22,7 @@ A local-first, application for chiropractic and physical therapy image compariso
 * [ ] Backup & restore functionality
 * [ ] General UI/UX improvements
   * [ ] tool-tips on hover
-  * [ ] show age instead of bday?
+  * [x] show age instead of bday?
   * [ ] client metrics: session counts, client counts, ...
   * [ ] navigational improvements (kb shortcuts, larger navigation buttons/areas, guestures)
   * [ ] persist user's camera choice

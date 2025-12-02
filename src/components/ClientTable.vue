@@ -39,6 +39,15 @@ function formatDate(dateString: string) {
   return new Date(dateString).toLocaleDateString();
 }
 
+function calculateAge(dobString: string): string {
+  if (!dobString) return "";
+  const dob = new Date(dobString);
+  const diffMs = Date.now() - dob.getTime();
+  const ageDate = new Date(diffMs); // miliseconds from epoch
+  const age = Math.abs(ageDate.getUTCFullYear() - 1970);
+  return age > 0 ? ` (${age} yrs)` : ""; // Return age with "yrs" or empty string if 0 or invalid
+}
+
 const columns = [
   columnHelper.accessor("id", {
     header: "ID",
@@ -54,7 +63,11 @@ const columns = [
   }),
   columnHelper.accessor("dob", {
     header: "Date of Birth",
-    cell: (info) => formatDate(info.getValue()),
+    cell: (info) => {
+      const formattedDob = formatDate(info.getValue());
+      const age = calculateAge(info.getValue());
+      return formattedDob + age;
+    },
   }),
   columnHelper.accessor("sex", {
     header: "Sex",
