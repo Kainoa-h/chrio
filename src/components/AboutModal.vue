@@ -4,6 +4,8 @@ import { X } from "lucide-vue-next";
 defineEmits<{
   (e: 'close'): void
 }>();
+
+const version = __APP_VERSION__;
 </script>
 
 <template>
@@ -30,7 +32,7 @@ defineEmits<{
 
           <div class="pt-4">
             <p>Built with <a href="https://tauri.app/" target="_blank" class="text-blue-600 hover:underline">Tauri</a>, <a href="https://vuejs.org/" target="_blank" class="text-blue-600 hover:underline">Vue 3</a>, and <a href="https://www.rust-lang.org/" target="_blank" class="text-blue-600 hover:underline">Rust</a>.</p>
-            <p class="text-sm mt-1">Version 0.1.1</p>
+            <p class="text-sm mt-1">Version {{ version }}</p>
           </div>
           
           <div class="pt-4 text-center">
