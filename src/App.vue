@@ -20,4 +20,8 @@ const showAbout = ref(false);
   <router-view />
   
   <AboutModal v-if="showAbout" @close="showAbout = false" />
+
+  <div class="fixed bottom-4 left-1/2 -translate-x-1/2 z-50 p-2 bg-yellow-400 text-yellow-900 rounded-lg shadow-lg text-sm font-medium">
+    ⚠️ This is a beta build. Use with caution.
+  </div>
 </template>
