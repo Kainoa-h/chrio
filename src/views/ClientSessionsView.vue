@@ -96,10 +96,8 @@ const columns = [
       const isSelected = selectedSessionIds.value.includes(info.row.original.id);
       return h('div', {
         class: 'relative flex items-center justify-center h-5 w-5 rounded border border-gray-300 bg-white cursor-pointer',
-        onClick: (e) => {
-          e.stopPropagation(); // Prevent row click from firing
-          toggleSelection(info.row.original.id);
-        },
+        title: 'Add to compare list',
+        // Click handling is delegated to the row
       }, [
         isSelected
           ? h(Check, { class: 'h-4 w-4 text-blue-600' })
