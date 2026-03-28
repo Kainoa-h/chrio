@@ -1,6 +1,7 @@
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted, watch } from 'vue';
+import { ref, onMounted, onUnmounted, watch, nextTick } from 'vue';
 import { Camera, X, Image as ImageIcon } from 'lucide-vue-next';
+import { commands, type CameraDevice } from '@/bindings';
 
 const props = defineProps<{
   show: boolean;
@@ -11,79 +12,104 @@ const emit = defineEmits<{
   (e: 'photo-taken', photoData: string): void;
 }>();
 
-const videoRef = ref<HTMLVideoElement | null>(null);
 const canvasRef = ref<HTMLCanvasElement | null>(null);
 const fileInputRef = ref<HTMLInputElement | null>(null);
-const stream = ref<MediaStream | null>(null);
 const error = ref<string | null>(null);
-const videoDevices = ref<MediaDeviceInfo[]>([]);
-const selectedDeviceId = ref<string>('');
+const cameras = ref<CameraDevice[]>([]);
+const selectedDeviceIndex = ref<number | null>(null);
+const streamActive = ref(false);
 
-async function getDevices() {
-  try {
-    const devices = await navigator.mediaDevices.enumerateDevices();
-    videoDevices.value = devices.filter(device => device.kind === 'videoinput');
-    
-    // If we have a stream, try to sync selectedDeviceId with currently active track if not set
-    if (stream.value && !selectedDeviceId.value) {
-        const track = stream.value.getVideoTracks()[0];
-        if (track) {
-            const settings = track.getSettings();
-            if (settings.deviceId) {
-                selectedDeviceId.value = settings.deviceId;
-            }
-        }
+let ws: WebSocket | null = null;
+let streamUrl: string | null = null;
+
+async function loadCameras() {
+  const result = await commands.listCameras();
+  if (result.status === 'ok') {
+    cameras.value = result.data;
+    if (result.data.length > 0 && selectedDeviceIndex.value === null) {
+      selectedDeviceIndex.value = result.data[0].index;
     }
-  } catch (e) {
-    console.error("Error getting devices:", e);
+  } else {
+    error.value = 'Could not list cameras: ' + result.error;
   }
+}
+
+function connectStream(wsUrl: string) {
+  disconnectStream();
+
+  ws = new WebSocket(wsUrl);
+  ws.binaryType = 'arraybuffer';
+
+  ws.onmessage = (event) => {
+    const blob = new Blob([event.data], { type: 'image/jpeg' });
+    createImageBitmap(blob).then((bitmap) => {
+      const canvas = canvasRef.value;
+      if (!canvas) return;
+      const ctx = canvas.getContext('2d');
+      if (!ctx) return;
+      // Resize canvas to match frame dimensions
+      if (canvas.width !== bitmap.width || canvas.height !== bitmap.height) {
+        canvas.width = bitmap.width;
+        canvas.height = bitmap.height;
+      }
+      ctx.drawImage(bitmap, 0, 0);
+      bitmap.close();
+    });
+  };
+
+  ws.onerror = () => {
+    error.value = 'Stream connection error';
+  };
+
+  ws.onclose = () => {
+    streamActive.value = false;
+  };
+
+  ws.onopen = () => {
+    streamActive.value = true;
+  };
+}
+
+function disconnectStream() {
+  if (ws) {
+    ws.close();
+    ws = null;
+  }
+  streamActive.value = false;
 }
 
 async function startCamera() {
-  stopCamera();
+  if (selectedDeviceIndex.value === null) return;
+  error.value = null;
   try {
-    const constraints: MediaStreamConstraints = {
-      audio: false,
-      video: selectedDeviceId.value 
-        ? { deviceId: { exact: selectedDeviceId.value } } 
-        : { facingMode: 'environment' }
-    };
-    
-    stream.value = await navigator.mediaDevices.getUserMedia(constraints);
-    if (videoRef.value) {
-      videoRef.value.srcObject = stream.value;
+    const result = await commands.startCamera(selectedDeviceIndex.value);
+    if (result.status === 'ok') {
+      streamUrl = result.data;
+      // Convert http URL to ws URL
+      const wsUrl = streamUrl.replace(/^http/, 'ws');
+      await nextTick();
+      connectStream(wsUrl);
+    } else {
+      error.value = 'Could not start camera: ' + result.error;
     }
-    error.value = null;
-    
-    // Update device list after getting permission, as labels might now be available
-    await getDevices();
   } catch (e: any) {
-    error.value = "Could not access camera: " + e.message;
-    console.error("Camera error:", e);
+    error.value = 'Could not start camera: ' + e.message;
   }
 }
 
-function stopCamera() {
-  if (stream.value) {
-    stream.value.getTracks().forEach(track => track.stop());
-    stream.value = null;
-  }
+async function stopCamera() {
+  disconnectStream();
+  streamUrl = null;
+  await commands.stopCamera();
 }
 
-function takePhoto() {
-  if (!videoRef.value || !canvasRef.value) return;
-
-  const video = videoRef.value;
-  const canvas = canvasRef.value;
-  const context = canvas.getContext('2d');
-
-  if (context) {
-    canvas.width = video.videoWidth;
-    canvas.height = video.videoHeight;
-    context.drawImage(video, 0, 0, canvas.width, canvas.height);
-    const photoData = canvas.toDataURL('image/jpeg');
-    emit('photo-taken', photoData);
+async function takePhoto() {
+  const result = await commands.snapPhoto();
+  if (result.status === 'ok') {
+    emit('photo-taken', result.data);
     emit('close');
+  } else {
+    error.value = 'Failed to capture photo: ' + result.error;
   }
 }
 
@@ -107,37 +133,35 @@ function handleFileChange(event: Event) {
   }
 }
 
-onMounted(() => {
-  if (props.show) {
-    startCamera();
-  }
-});
-
-// Watch for prop changes to start/stop camera
-watch(() => props.show, (newVal) => {
+watch(() => props.show, async (newVal) => {
   if (newVal) {
-    startCamera();
+    await loadCameras();
+    if (selectedDeviceIndex.value !== null) {
+      await startCamera();
+    }
   } else {
-    stopCamera();
+    await stopCamera();
   }
 });
 
-// Watch for camera selection changes
-watch(selectedDeviceId, () => {
-    if (props.show && stream.value) {
-        // Only restart if we are already showing and have a stream
-        // (avoids triggering on initial mount before permission)
-        // Check if the current stream device ID is different to avoid redundant restart
-        const track = stream.value.getVideoTracks()[0];
-        const currentId = track?.getSettings().deviceId;
-        if (currentId !== selectedDeviceId.value) {
-             startCamera();
-        }
+watch(selectedDeviceIndex, async (newVal, oldVal) => {
+  if (props.show && newVal !== null && oldVal !== null && newVal !== oldVal) {
+    await startCamera();
+  }
+});
+
+onMounted(async () => {
+  if (props.show) {
+    await loadCameras();
+    if (selectedDeviceIndex.value !== null) {
+      await startCamera();
     }
+  }
 });
 
 onUnmounted(() => {
-  stopCamera();
+  disconnectStream();
+  commands.stopCamera();
 });
 </script>
 
@@ -147,19 +171,19 @@ onUnmounted(() => {
       <!-- Header -->
       <div class="p-4 border-b border-gray-200 flex items-center justify-between bg-gray-50">
         <div class="flex-1">
-             <select 
-                v-if="videoDevices.length > 0" 
-                v-model="selectedDeviceId" 
+             <select
+                v-if="cameras.length > 0"
+                v-model="selectedDeviceIndex"
                 class="block w-full max-w-[200px] rounded-md border-gray-300 py-1.5 text-base leading-5 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 sm:text-sm"
             >
-                <option v-for="device in videoDevices" :key="device.deviceId" :value="device.deviceId">
-                    {{ device.label || 'Camera ' + (videoDevices.indexOf(device) + 1) }}
+                <option v-for="device in cameras" :key="device.index" :value="device.index">
+                    {{ device.name || 'Camera ' + (device.index + 1) }}
                 </option>
             </select>
             <span v-else class="font-semibold text-gray-700">Take Photo</span>
         </div>
-        <button 
-            @click="$emit('close')" 
+        <button
+            @click="$emit('close')"
             class="p-2 rounded-full text-gray-500 hover:bg-gray-200 transition-colors"
         >
             <X class="h-5 w-5" />
@@ -167,25 +191,31 @@ onUnmounted(() => {
       </div>
 
       <div class="relative bg-black flex items-center justify-center flex-grow min-h-[300px]">
-        <video ref="videoRef" autoplay playsinline class="w-full h-full object-contain max-h-[60vh]"></video>
+        <canvas
+          ref="canvasRef"
+          class="w-full h-full object-contain max-h-[60vh]"
+        />
+        <div v-if="!streamActive && !error" class="absolute inset-0 flex items-center justify-center text-gray-400 text-sm">
+          Starting camera...
+        </div>
         <div v-if="error" class="absolute inset-0 flex items-center justify-center text-red-500 p-4 text-center">
           {{ error }}
         </div>
       </div>
 
       <div class="p-6 flex items-center justify-center gap-8 bg-gray-50 border-t border-gray-200">
-        <button 
+        <button
             @click="triggerFileUpload"
             class="p-3 rounded-full text-gray-600 hover:bg-gray-200 transition-colors"
             title="Upload from device"
         >
             <ImageIcon class="h-6 w-6" />
         </button>
-        
-        <button 
+
+        <button
           @click="takePhoto"
           class="h-16 w-16 rounded-full bg-white border-4 border-blue-500 flex items-center justify-center shadow-lg hover:bg-gray-100 transition-transform active:scale-95"
-          :disabled="!!error"
+          :disabled="!streamActive"
         >
           <Camera class="h-8 w-8 text-blue-600" />
         </button>
@@ -193,14 +223,13 @@ onUnmounted(() => {
         <!-- Spacer to balance layout -->
         <div class="w-12"></div>
       </div>
-      
-      <!-- Hidden canvas & file input -->
-      <canvas ref="canvasRef" class="hidden"></canvas>
-      <input 
-        type="file" 
-        ref="fileInputRef" 
-        accept="image/*" 
-        class="hidden" 
+
+      <!-- Hidden file input -->
+      <input
+        type="file"
+        ref="fileInputRef"
+        accept="image/*"
+        class="hidden"
         @change="handleFileChange"
       >
     </div>

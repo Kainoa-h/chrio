@@ -1,9 +1,13 @@
+mod camera;
 mod commands;
 mod db;
 mod models;
 
+use std::sync::Arc;
+
 use tauri_specta::{collect_commands, Builder};
 use tauri::Manager;
+use tokio::sync::watch;
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
@@ -19,7 +23,11 @@ pub fn run() {
             commands::save_image,
             commands::read_image_base64,
             commands::get_next_session_number,
-            commands::update_session_crop
+            commands::update_session_crop,
+            commands::list_cameras,
+            commands::start_camera,
+            commands::stop_camera,
+            commands::snap_photo
         ]);
 
     #[cfg(debug_assertions)]
@@ -36,6 +44,17 @@ pub fn run() {
             tauri::async_runtime::block_on(async move {
                 let db = db::init_db(&handle).await.expect("Failed to initialize database");
                 handle.manage(db);
+
+                // Initialize camera state and MJPEG server
+                let (frame_tx, frame_rx) = watch::channel(Arc::new(Vec::new()));
+                let port = camera::start_stream_server(frame_rx.clone()).await;
+                let camera_state = camera::CameraState {
+                    frame_tx,
+                    frame_rx,
+                    camera_handle: std::sync::Mutex::new(None),
+                    stream_port: port,
+                };
+                handle.manage(camera_state);
             });
             Ok(())
         })

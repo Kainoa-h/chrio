@@ -1,3 +1,4 @@
+use crate::camera::{self, CameraDevice, CameraState};
 use crate::db::DbState;
 use crate::models::{Client, CreateClientDto, CreateSessionDto, Session, UpdateClientDto, UpdateSessionDto};
 use base64::{engine::general_purpose, Engine as _};
@@ -134,4 +135,49 @@ pub async fn update_session_crop(
     Session::update_crop(&*db, session_id, &image_type, crop_data)
         .await
         .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+#[specta]
+pub async fn list_cameras() -> Result<Vec<CameraDevice>, String> {
+    tokio::task::spawn_blocking(camera::enumerate_cameras)
+        .await
+        .map_err(|e| e.to_string())?
+}
+
+#[tauri::command]
+#[specta]
+pub async fn start_camera(
+    state: State<'_, CameraState>,
+    device_index: u32,
+) -> Result<String, String> {
+    // Stop any existing camera first
+    camera::stop_capture(&state);
+
+    // Start capture on the new device
+    let handle = tokio::task::spawn_blocking({
+        let frame_tx = state.frame_tx.clone();
+        move || camera::start_capture(device_index, frame_tx)
+    })
+    .await
+    .map_err(|e| e.to_string())??;
+
+    *state.camera_handle.lock().unwrap() = Some(handle);
+
+    Ok(format!("http://127.0.0.1:{}/stream", state.stream_port))
+}
+
+#[tauri::command]
+#[specta]
+pub async fn stop_camera(state: State<'_, CameraState>) -> Result<(), String> {
+    camera::stop_capture(&state);
+    Ok(())
+}
+
+#[tauri::command]
+#[specta]
+pub async fn snap_photo(state: State<'_, CameraState>) -> Result<String, String> {
+    let jpeg_bytes = camera::snap_frame(&state)?;
+    let base64_data = general_purpose::STANDARD.encode(&jpeg_bytes);
+    Ok(format!("data:image/jpeg;base64,{}", base64_data))
 }
