@@ -24,7 +24,7 @@ pub fn run() {
 
     #[cfg(debug_assertions)]
     builder
-        .export(specta_typescript::Typescript::default(), "../src/bindings.ts")
+        .export(specta_typescript::Typescript::default().header("// @ts-nocheck"), "../src/bindings.ts")
         .expect("Failed to export typescript bindings");
 
     tauri::Builder::default()
