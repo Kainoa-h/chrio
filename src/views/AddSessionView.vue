@@ -1,11 +1,12 @@
 <script setup lang="ts">
 import { ref, onMounted, computed } from "vue";
-import { useRoute, useRouter } from "vue-router";
+import { useRoute, useRouter, onBeforeRouteLeave } from "vue-router";
 import { commands, type CreateSessionDto, type Client, type UpdateSessionDto} from "@/bindings";
 import { ArrowLeft, Camera, Trash2 } from "lucide-vue-next";
 import CameraModal from "@/components/CameraModal.vue";
 import RatioImage from "@/components/RatioImage.vue";
 import ImageCropper from "@/components/ImageCropper.vue";
+import Toast from "@/components/Toast.vue";
 
 const route = useRoute();
 const router = useRouter();
@@ -33,6 +34,49 @@ const saving = ref(false);
 const error = ref<string | null>(null);
 const client = ref<Client | null>(null);
 const nextSessionNumber = ref(1);
+
+// Dirty state & navigation guard
+const initialSnapshot = ref<string | null>(null);
+const savedSuccessfully = ref(false);
+const showLeaveConfirm = ref(false);
+let pendingRoute: any = null;
+
+const isDirty = computed(() => {
+  if (initialSnapshot.value !== null) {
+    // Editing mode: compare against snapshot taken after load
+    const current = JSON.stringify({
+      session: newSession.value,
+      hasImages: Object.fromEntries(
+        Object.entries(imagePreviews.value).map(([k, v]) => [k, !!v])
+      ),
+    });
+    return current !== initialSnapshot.value;
+  }
+  // New session mode: any image or any field filled
+  const hasImage = Object.values(imagePreviews.value).some(v => !!v);
+  const hasField = !!(newSession.value.height || newSession.value.weight || newSession.value.notes);
+  return hasImage || hasField;
+});
+
+onBeforeRouteLeave((to) => {
+  if (isDirty.value && !savedSuccessfully.value) {
+    pendingRoute = to;
+    showLeaveConfirm.value = true;
+    return false;
+  }
+});
+
+const toast = ref({ show: false, message: '', type: 'success' as 'success' | 'error' | 'info' });
+function showToastMsg(message: string, type: 'success' | 'error' | 'info') {
+  toast.value = { show: true, message, type };
+}
+
+function confirmLeave() {
+  showLeaveConfirm.value = false;
+  savedSuccessfully.value = true;
+  showToastMsg('Changes discarded', 'warn');
+  setTimeout(() => router.push(pendingRoute), 1000);
+}
 
 const showCamera = ref(false);
 const showCropper = ref(false);
@@ -96,6 +140,14 @@ async function fetchClientAndSessionInfo() {
                 }
             }
         }
+
+        // Capture snapshot after loading so we can detect actual changes
+        initialSnapshot.value = JSON.stringify({
+          session: newSession.value,
+          hasImages: Object.fromEntries(
+            Object.entries(imagePreviews.value).map(([k, v]) => [k, !!v])
+          ),
+        });
       }
     } else {
       const nextSessionResult = await commands.getNextSessionNumber(clientId);
@@ -179,20 +231,27 @@ async function handleAddSession() {
         };
         const result = await commands.updateSession(updateDto);
         if (result.status === "ok") {
-          router.push({ name: 'client-sessions', params: { id: clientId } });
+          showToastMsg('Session saved!', 'success');
+          savedSuccessfully.value = true;
+          setTimeout(() => router.push({ name: 'client-sessions', params: { id: clientId } }), 1000);
         } else {
           error.value = result.error;
+          showToastMsg(`Error: ${result.error}`, 'error');
         }
     } else {
         const result = await commands.addSession(newSession.value);
         if (result.status === "ok") {
-          router.push({ name: 'client-sessions', params: { id: clientId } });
+          showToastMsg('Session saved!', 'success');
+          savedSuccessfully.value = true;
+          setTimeout(() => router.push({ name: 'client-sessions', params: { id: clientId } }), 1000);
         } else {
           error.value = result.error;
+          showToastMsg(`Error: ${result.error}`, 'error');
         }
     }
   } catch (e: any) {
     error.value = e.message || "An unknown error occurred";
+    showToastMsg(`Error: ${e.message || 'An unknown error occurred'}`, 'error');
   } finally {
     saving.value = false;
   }
@@ -204,6 +263,36 @@ onMounted(() => {
 </script>
 
 <template>
+  <Toast :show="toast.show" :message="toast.message" :type="toast.type" @close="toast.show = false" />
+
+  <!-- Leave confirmation dialog -->
+  <div v-if="showLeaveConfirm" class="fixed inset-0 bg-black/50 z-50 flex items-center justify-center">
+    <div class="bg-white rounded-xl shadow-xl p-6 max-w-sm w-full mx-4 space-y-4">
+      <h2 class="text-lg font-semibold text-gray-900">Unsaved Changes</h2>
+      <p class="text-sm text-gray-600">You have unsaved changes. Would you like to save before leaving?</p>
+      <div class="flex flex-col gap-2">
+        <button
+          @click="() => { showLeaveConfirm = false; handleAddSession(); }"
+          class="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 transition-colors"
+        >
+          Save Session
+        </button>
+        <button
+          @click="confirmLeave"
+          class="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+        >
+          Discard Changes
+        </button>
+        <button
+          @click="showLeaveConfirm = false"
+          class="px-4 py-2 text-sm font-medium text-gray-500 hover:text-gray-700 transition-colors"
+        >
+          Cancel
+        </button>
+      </div>
+    </div>
+  </div>
+
   <div class="p-8 max-w-6xl mx-auto">
     <div class="flex items-center mb-6">
       <button 
