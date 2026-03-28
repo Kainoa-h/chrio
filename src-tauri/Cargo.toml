@@ -1,6 +1,6 @@
 [package]
 name = "chrio"
-version = "0.1.1"
+version = "0.1.2"
 description = "Simple Tauri app for managing and comparing physio photos"
 authors = ["Kainoa"]
 edition = "2021"
