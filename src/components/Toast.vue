@@ -3,7 +3,7 @@ import { watch } from 'vue';
 
 const props = defineProps<{
   message: string;
-  type: 'success' | 'error' | 'info';
+  type: 'success' | 'error' | 'info' | 'warn';
   show: boolean;
 }>();
 
