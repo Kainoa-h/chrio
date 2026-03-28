@@ -2,11 +2,16 @@
 import { ref } from "vue";
 import { Info } from "lucide-vue-next";
 import AboutModal from "@/components/AboutModal.vue";
+import Toast from "@/components/Toast.vue";
+import { useToast } from "@/composables/useToast";
 
 const showAbout = ref(false);
+const { show, message, type, closeToast } = useToast();
 </script>
 
 <template>
+  <Toast :show="show" :message="message" :type="type" @close="closeToast" />
+
   <div class="absolute top-4 right-4 z-40">
     <button 
       @click="showAbout = true"

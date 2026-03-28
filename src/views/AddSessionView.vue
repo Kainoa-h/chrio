@@ -6,7 +6,7 @@ import { ArrowLeft, Camera, Trash2 } from "lucide-vue-next";
 import CameraModal from "@/components/CameraModal.vue";
 import RatioImage from "@/components/RatioImage.vue";
 import ImageCropper from "@/components/ImageCropper.vue";
-import Toast from "@/components/Toast.vue";
+import { useToast } from "@/composables/useToast";
 
 const route = useRoute();
 const router = useRouter();
@@ -66,16 +66,13 @@ onBeforeRouteLeave((to) => {
   }
 });
 
-const toast = ref({ show: false, message: '', type: 'success' as 'success' | 'error' | 'info' });
-function showToastMsg(message: string, type: 'success' | 'error' | 'info') {
-  toast.value = { show: true, message, type };
-}
+const { showToast: showToastMsg } = useToast();
 
 function confirmLeave() {
   showLeaveConfirm.value = false;
   savedSuccessfully.value = true;
   showToastMsg('Changes discarded', 'warn');
-  setTimeout(() => router.push(pendingRoute), 1000);
+  router.push(pendingRoute);
 }
 
 const showCamera = ref(false);
@@ -233,7 +230,7 @@ async function handleAddSession() {
         if (result.status === "ok") {
           showToastMsg('Session saved!', 'success');
           savedSuccessfully.value = true;
-          setTimeout(() => router.push({ name: 'client-sessions', params: { id: clientId } }), 1000);
+          router.push({ name: 'client-sessions', params: { id: clientId } });
         } else {
           error.value = result.error;
           showToastMsg(`Error: ${result.error}`, 'error');
@@ -243,7 +240,7 @@ async function handleAddSession() {
         if (result.status === "ok") {
           showToastMsg('Session saved!', 'success');
           savedSuccessfully.value = true;
-          setTimeout(() => router.push({ name: 'client-sessions', params: { id: clientId } }), 1000);
+          router.push({ name: 'client-sessions', params: { id: clientId } });
         } else {
           error.value = result.error;
           showToastMsg(`Error: ${result.error}`, 'error');
@@ -263,8 +260,6 @@ onMounted(() => {
 </script>
 
 <template>
-  <Toast :show="toast.show" :message="toast.message" :type="toast.type" @close="toast.show = false" />
-
   <!-- Leave confirmation dialog -->
   <div v-if="showLeaveConfirm" class="fixed inset-0 bg-black/50 z-50 flex items-center justify-center">
     <div class="bg-white rounded-xl shadow-xl p-6 max-w-sm w-full mx-4 space-y-4">
