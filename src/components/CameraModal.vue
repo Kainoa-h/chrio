@@ -42,11 +42,16 @@ async function getDevices() {
 async function startCamera() {
   stopCamera();
   try {
+    const videoConstraints: MediaTrackConstraints = selectedDeviceId.value
+      ? { deviceId: { exact: selectedDeviceId.value } }
+      : { facingMode: 'environment' };
+
+    videoConstraints.width = { ideal: 4096 };
+    videoConstraints.height = { ideal: 2160 };
+
     const constraints: MediaStreamConstraints = {
       audio: false,
-      video: selectedDeviceId.value 
-        ? { deviceId: { exact: selectedDeviceId.value } } 
-        : { facingMode: 'environment' }
+      video: videoConstraints,
     };
     
     stream.value = await navigator.mediaDevices.getUserMedia(constraints);
@@ -81,7 +86,7 @@ function takePhoto() {
     canvas.width = video.videoWidth;
     canvas.height = video.videoHeight;
     context.drawImage(video, 0, 0, canvas.width, canvas.height);
-    const photoData = canvas.toDataURL('image/jpeg');
+    const photoData = canvas.toDataURL('image/jpeg', 1.0);
     emit('photo-taken', photoData);
     emit('close');
   }
