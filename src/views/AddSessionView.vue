@@ -34,7 +34,6 @@ const newSession = ref<CreateSessionDto>({
 });
 
 const saving = ref(false);
-const autosaving = ref(false);
 const lastAutosaveAt = ref<number | null>(null);
 const error = ref<string | null>(null);
 const client = ref<Client | null>(null);
@@ -208,11 +207,18 @@ function discardPhoto(type: string) {
 }
 
 // Core save routine used by both manual save and autosave
+let pendingSave: { resolve: (ok: boolean) => void } | null = null;
+
 async function performSave(): Promise<boolean> {
   if (!client.value) return false;
-  if (autosaving.value || saving.value) return false;
 
-  autosaving.value = true;
+  if (saving.value) {
+    return new Promise<boolean>((resolve) => {
+      pendingSave = { resolve };
+    });
+  }
+
+  saving.value = true;
   error.value = null;
 
   try {
@@ -274,7 +280,12 @@ async function performSave(): Promise<boolean> {
     error.value = e.message || "An unknown error occurred";
     return false;
   } finally {
-    autosaving.value = false;
+    saving.value = false;
+    if (pendingSave) {
+      const p = pendingSave;
+      pendingSave = null;
+      performSave().then(p.resolve);
+    }
   }
 }
 
@@ -306,9 +317,7 @@ async function handleAddSession() {
     clearTimeout(autosaveTimer);
     autosaveTimer = null;
   }
-  saving.value = true;
   const ok = await performSave();
-  saving.value = false;
   if (ok) {
     showToastMsg('Session saved!', 'success');
     savedSuccessfully.value = true;
@@ -455,7 +464,7 @@ onBeforeUnmount(() => {
         <ArrowLeft class="h-6 w-6 text-gray-600" />
       </button>
       <h1 class="text-3xl font-bold text-gray-900">{{ isEditing ? 'Edit Session #' + currentSessionNumber : 'Add New Session' }} for {{ client?.firstname || 'Client' }}</h1>
-      <span class="ml-4 text-xs text-gray-500 self-center" v-if="autosaving">Saving…</span>
+      <span class="ml-4 text-xs text-gray-500 self-center" v-if="saving">Saving…</span>
       <span class="ml-4 text-xs text-gray-400 self-center" v-else-if="lastAutosaveAt">All changes saved</span>
     </div>
 
