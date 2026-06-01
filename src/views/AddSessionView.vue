@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, onMounted, computed } from "vue";
+import { ref, onMounted, onBeforeUnmount, computed, watch } from "vue";
 import { useRoute, useRouter, onBeforeRouteLeave } from "vue-router";
 import { commands, type CreateSessionDto, type Client, type UpdateSessionDto} from "@/bindings";
 import { ArrowLeft, Camera, Trash2 } from "lucide-vue-next";
@@ -7,12 +7,15 @@ import CameraModal from "@/components/CameraModal.vue";
 import RatioImage from "@/components/RatioImage.vue";
 import ImageCropper from "@/components/ImageCropper.vue";
 import { useToast } from "@/composables/useToast";
+import { getCurrentWindow } from "@tauri-apps/api/window";
 
 const route = useRoute();
 const router = useRouter();
 const clientId = Number(route.params.id);
-const sessionId = route.params.sessionId ? Number(route.params.sessionId) : null;
-const isEditing = computed(() => !!sessionId);
+const sessionIdParam = route.params.sessionId ? Number(route.params.sessionId) : null;
+// Mutable sessionId so we can capture the id when a new session is autosaved
+const sessionIdRef = ref<number | null>(sessionIdParam);
+const isEditing = computed(() => !!sessionIdRef.value);
 const currentSessionNumber = ref<number | null>(null);
 
 const newSession = ref<CreateSessionDto>({
@@ -31,6 +34,8 @@ const newSession = ref<CreateSessionDto>({
 });
 
 const saving = ref(false);
+const autosaving = ref(false);
+const lastAutosaveAt = ref<number | null>(null);
 const error = ref<string | null>(null);
 const client = ref<Client | null>(null);
 const nextSessionNumber = ref(1);
@@ -43,7 +48,7 @@ let pendingRoute: any = null;
 
 const isDirty = computed(() => {
   if (initialSnapshot.value !== null) {
-    // Editing mode: compare against snapshot taken after load
+    // Editing mode (or after first autosave): compare against snapshot
     const current = JSON.stringify({
       session: newSession.value,
       hasImages: Object.fromEntries(
@@ -52,7 +57,7 @@ const isDirty = computed(() => {
     });
     return current !== initialSnapshot.value;
   }
-  // New session mode: any image or any field filled
+  // New session mode, before any autosave: any image or any field filled
   const hasImage = Object.values(imagePreviews.value).some(v => !!v);
   const hasField = !!(newSession.value.height || newSession.value.weight || newSession.value.notes);
   return hasImage || hasField;
@@ -72,7 +77,9 @@ function confirmLeave() {
   showLeaveConfirm.value = false;
   savedSuccessfully.value = true;
   showToastMsg('Changes discarded', 'warn');
-  router.push(pendingRoute);
+  if (pendingRoute) {
+    router.push(pendingRoute);
+  }
 }
 
 const showCamera = ref(false);
@@ -91,6 +98,17 @@ const cropData = ref<Record<string, { x: number, y: number, width: number } | nu
   left_lateral: null,
 });
 
+const imageTypes = ['anterior', 'posterior', 'right_lateral', 'left_lateral'] as const;
+
+function captureSnapshot() {
+  initialSnapshot.value = JSON.stringify({
+    session: { ...newSession.value },
+    hasImages: Object.fromEntries(
+      Object.entries(imagePreviews.value).map(([k, v]) => [k, !!v])
+    ),
+  });
+}
+
 async function fetchClientAndSessionInfo() {
   try {
     const clientsResult = await commands.getClients();
@@ -98,8 +116,8 @@ async function fetchClientAndSessionInfo() {
       client.value = clientsResult.data.find(c => c.id === clientId) || null;
     }
 
-    if (isEditing.value && sessionId) {
-      const sessionResult = await commands.getSession(sessionId);
+    if (isEditing.value && sessionIdRef.value) {
+      const sessionResult = await commands.getSession(sessionIdRef.value);
       if (sessionResult.status === "ok") {
         const s = sessionResult.data;
         currentSessionNumber.value = s.session_number;
@@ -119,8 +137,7 @@ async function fetchClientAndSessionInfo() {
             left_lateral_crop: s.left_lateral_crop,
         };
 
-        const types = ['anterior', 'posterior', 'right_lateral', 'left_lateral'];
-        for (const type of types) {
+        for (const type of imageTypes) {
             const path = (s as any)[type];
             if (path) {
                 const imgResult = await commands.readImageBase64(path);
@@ -139,12 +156,7 @@ async function fetchClientAndSessionInfo() {
         }
 
         // Capture snapshot after loading so we can detect actual changes
-        initialSnapshot.value = JSON.stringify({
-          session: newSession.value,
-          hasImages: Object.fromEntries(
-            Object.entries(imagePreviews.value).map(([k, v]) => [k, !!v])
-          ),
-        });
+        captureSnapshot();
       }
     } else {
       const nextSessionResult = await commands.getNextSessionNumber(clientId);
@@ -175,11 +187,15 @@ function handlePhotoTaken(photoData: string) {
   imagePreviews.value[activeImageType.value] = photoData;
   // Reset crop when new photo is taken
   cropData.value[activeImageType.value] = null;
+  // Autosave right away - photos are large operations, save them immediately
+  autoSave();
 }
 
 function handleCropSave(data: { x: number, y: number, width: number }) {
   if (!activeImageType.value) return;
   cropData.value[activeImageType.value] = data;
+  // Autosave - the image file is unchanged but crop metadata should persist
+  autoSave();
 }
 
 function discardPhoto(type: string) {
@@ -187,17 +203,22 @@ function discardPhoto(type: string) {
   cropData.value[type] = null;
   (newSession.value as any)[type] = null;
   (newSession.value as any)[`${type}_crop`] = null;
+  // Autosave the deletion
+  autoSave();
 }
 
-async function handleAddSession() {
-  if (!client.value) return;
-  saving.value = true;
+// Core save routine used by both manual save and autosave
+async function performSave(): Promise<boolean> {
+  if (!client.value) return false;
+  if (autosaving.value || saving.value) return false;
+
+  autosaving.value = true;
   error.value = null;
 
   try {
+    const sessionNo = sessionIdRef.value ? currentSessionNumber.value! : nextSessionNumber.value;
+
     // Save images first
-    const sessionNo = isEditing.value ? currentSessionNumber.value! : nextSessionNumber.value;
-    const imageTypes = ['anterior', 'posterior', 'right_lateral', 'left_lateral'];
     for (const type of imageTypes) {
       if (imagePreviews.value[type]) {
         const result = await commands.saveImage(
@@ -207,7 +228,7 @@ async function handleAddSession() {
           type,
           imagePreviews.value[type]
         );
-        
+
         if (result.status === "ok") {
           (newSession.value as any)[type] = result.data;
           // Save crop data if exists
@@ -220,42 +241,151 @@ async function handleAddSession() {
       }
     }
 
-    // Save session to DB
-    if (isEditing.value && sessionId) {
+    if (sessionIdRef.value) {
         const updateDto: UpdateSessionDto = {
-            id: sessionId,
+            id: sessionIdRef.value,
             ...newSession.value
         };
         const result = await commands.updateSession(updateDto);
         if (result.status === "ok") {
-          showToastMsg('Session saved!', 'success');
-          savedSuccessfully.value = true;
-          router.push({ name: 'client-sessions', params: { id: clientId } });
+          lastAutosaveAt.value = Date.now();
+          // Refresh snapshot so isDirty becomes false until the next change
+          captureSnapshot();
+          return true;
         } else {
           error.value = result.error;
-          showToastMsg(`Error: ${result.error}`, 'error');
+          return false;
         }
     } else {
         const result = await commands.addSession(newSession.value);
         if (result.status === "ok") {
-          showToastMsg('Session saved!', 'success');
-          savedSuccessfully.value = true;
-          router.push({ name: 'client-sessions', params: { id: clientId } });
+          // Capture the newly-created session id so future saves update it
+          sessionIdRef.value = result.data;
+          currentSessionNumber.value = nextSessionNumber.value;
+          lastAutosaveAt.value = Date.now();
+          captureSnapshot();
+          return true;
         } else {
           error.value = result.error;
-          showToastMsg(`Error: ${result.error}`, 'error');
+          return false;
         }
     }
   } catch (e: any) {
     error.value = e.message || "An unknown error occurred";
-    showToastMsg(`Error: ${e.message || 'An unknown error occurred'}`, 'error');
+    return false;
   } finally {
-    saving.value = false;
+    autosaving.value = false;
   }
+}
+
+let autosaveTimer: ReturnType<typeof setTimeout> | null = null;
+function autoSave() {
+  if (autosaveTimer) clearTimeout(autosaveTimer);
+  autosaveTimer = setTimeout(async () => {
+    autosaveTimer = null;
+    // Don't autosave if there's nothing meaningful to save yet
+    if (!isDirty.value) return;
+    const ok = await performSave();
+    if (!ok && error.value) {
+      showToastMsg(`Autosave failed: ${error.value}`, 'error');
+    }
+  }, 600);
+}
+
+// Watch notes + numeric fields and debounce-autosave
+watch(
+  () => [newSession.value.notes, newSession.value.height, newSession.value.weight],
+  () => {
+    if (!client.value) return;
+    autoSave();
+  }
+);
+
+async function handleAddSession() {
+  if (autosaveTimer) {
+    clearTimeout(autosaveTimer);
+    autosaveTimer = null;
+  }
+  saving.value = true;
+  const ok = await performSave();
+  saving.value = false;
+  if (ok) {
+    showToastMsg('Session saved!', 'success');
+    savedSuccessfully.value = true;
+    router.push({ name: 'client-sessions', params: { id: clientId } });
+  } else if (error.value) {
+    showToastMsg(`Error: ${error.value}`, 'error');
+  }
+}
+
+// --- Window close-requested guard ---
+let unlistenClose: (() => void) | null = null;
+const showCloseConfirm = ref(false);
+
+async function installCloseGuard() {
+  try {
+    const win = getCurrentWindow();
+    unlistenClose = await win.onCloseRequested(async (event) => {
+      if (savedSuccessfully.value || !isDirty.value) {
+        return; // allow close
+      }
+      event.preventDefault();
+      showCloseConfirm.value = true;
+    });
+  } catch (e) {
+    console.error("Failed to install close guard", e);
+  }
+}
+
+async function saveAndClose() {
+  if (autosaveTimer) {
+    clearTimeout(autosaveTimer);
+    autosaveTimer = null;
+  }
+  const ok = await performSave();
+  showCloseConfirm.value = false;
+  if (ok) {
+    showToastMsg('Session saved!', 'success');
+    savedSuccessfully.value = true;
+    // Re-emit the close event so the window closes
+    try {
+      await getCurrentWindow().close();
+    } catch (e) {
+      console.error("Failed to close window", e);
+    }
+  } else if (error.value) {
+    showToastMsg(`Error: ${error.value}`, 'error');
+  }
+}
+
+async function discardAndClose() {
+  showCloseConfirm.value = false;
+  savedSuccessfully.value = true;
+  try {
+    await getCurrentWindow().close();
+  } catch (e) {
+    console.error("Failed to close window", e);
+  }
+}
+
+function cancelClose() {
+  showCloseConfirm.value = false;
 }
 
 onMounted(() => {
   fetchClientAndSessionInfo();
+  installCloseGuard();
+});
+
+onBeforeUnmount(() => {
+  if (unlistenClose) {
+    unlistenClose();
+    unlistenClose = null;
+  }
+  if (autosaveTimer) {
+    clearTimeout(autosaveTimer);
+    autosaveTimer = null;
+  }
 });
 </script>
 
@@ -288,6 +418,34 @@ onMounted(() => {
     </div>
   </div>
 
+  <!-- Window close confirmation dialog -->
+  <div v-if="showCloseConfirm" class="fixed inset-0 bg-black/50 z-50 flex items-center justify-center">
+    <div class="bg-white rounded-xl shadow-xl p-6 max-w-sm w-full mx-4 space-y-4">
+      <h2 class="text-lg font-semibold text-gray-900">Unsaved Changes</h2>
+      <p class="text-sm text-gray-600">You have unsaved changes. What would you like to do before closing?</p>
+      <div class="flex flex-col gap-2">
+        <button
+          @click="saveAndClose"
+          class="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 transition-colors"
+        >
+          Save &amp; Close
+        </button>
+        <button
+          @click="discardAndClose"
+          class="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+        >
+          Discard &amp; Close
+        </button>
+        <button
+          @click="cancelClose"
+          class="px-4 py-2 text-sm font-medium text-gray-500 hover:text-gray-700 transition-colors"
+        >
+          Cancel
+        </button>
+      </div>
+    </div>
+  </div>
+
   <div class="p-8 max-w-6xl mx-auto">
     <div class="flex items-center mb-6">
       <button 
@@ -297,6 +455,8 @@ onMounted(() => {
         <ArrowLeft class="h-6 w-6 text-gray-600" />
       </button>
       <h1 class="text-3xl font-bold text-gray-900">{{ isEditing ? 'Edit Session #' + currentSessionNumber : 'Add New Session' }} for {{ client?.firstname || 'Client' }}</h1>
+      <span class="ml-4 text-xs text-gray-500 self-center" v-if="autosaving">Saving…</span>
+      <span class="ml-4 text-xs text-gray-400 self-center" v-else-if="lastAutosaveAt">All changes saved</span>
     </div>
 
     <form @submit.prevent="handleAddSession" class="bg-white p-6 rounded-md shadow-sm space-y-4 border border-gray-200">
