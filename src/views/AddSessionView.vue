@@ -6,6 +6,7 @@ import { ArrowLeft, Camera, Trash2 } from "lucide-vue-next";
 import CameraModal from "@/components/CameraModal.vue";
 import RatioImage from "@/components/RatioImage.vue";
 import ImageCropper from "@/components/ImageCropper.vue";
+import ConfirmDialog from "@/components/ConfirmDialog.vue";
 import { useToast } from "@/composables/useToast";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 
@@ -34,6 +35,7 @@ const newSession = ref<CreateSessionDto>({
 });
 
 const saving = ref(false);
+const dirtyImages = ref<Set<string>>(new Set());
 const lastAutosaveAt = ref<number | null>(null);
 const error = ref<string | null>(null);
 const client = ref<Client | null>(null);
@@ -182,18 +184,16 @@ function openCropper(type: string) {
 
 function handlePhotoTaken(photoData: string) {
   if (!activeImageType.value) return;
-  // Only update the preview in memory
   imagePreviews.value[activeImageType.value] = photoData;
-  // Reset crop when new photo is taken
   cropData.value[activeImageType.value] = null;
-  // Autosave right away - photos are large operations, save them immediately
+  dirtyImages.value.add(activeImageType.value);
   autoSave();
 }
 
 function handleCropSave(data: { x: number, y: number, width: number }) {
   if (!activeImageType.value) return;
   cropData.value[activeImageType.value] = data;
-  // Autosave - the image file is unchanged but crop metadata should persist
+  dirtyImages.value.add(activeImageType.value);
   autoSave();
 }
 
@@ -202,7 +202,7 @@ function discardPhoto(type: string) {
   cropData.value[type] = null;
   (newSession.value as any)[type] = null;
   (newSession.value as any)[`${type}_crop`] = null;
-  // Autosave the deletion
+  dirtyImages.value.add(type);
   autoSave();
 }
 
@@ -224,8 +224,9 @@ async function performSave(): Promise<boolean> {
   try {
     const sessionNo = sessionIdRef.value ? currentSessionNumber.value! : nextSessionNumber.value;
 
-    // Save images first
-    for (const type of imageTypes) {
+    // Only persist images that have actually changed
+    const imagesToSave = Array.from(dirtyImages.value);
+    for (const type of imagesToSave) {
       if (imagePreviews.value[type]) {
         const result = await commands.saveImage(
           clientId,
@@ -237,7 +238,6 @@ async function performSave(): Promise<boolean> {
 
         if (result.status === "ok") {
           (newSession.value as any)[type] = result.data;
-          // Save crop data if exists
           if (cropData.value[type]) {
              (newSession.value as any)[`${type}_crop`] = JSON.stringify(cropData.value[type]);
           }
@@ -255,7 +255,7 @@ async function performSave(): Promise<boolean> {
         const result = await commands.updateSession(updateDto);
         if (result.status === "ok") {
           lastAutosaveAt.value = Date.now();
-          // Refresh snapshot so isDirty becomes false until the next change
+          dirtyImages.value.clear();
           captureSnapshot();
           return true;
         } else {
@@ -265,10 +265,10 @@ async function performSave(): Promise<boolean> {
     } else {
         const result = await commands.addSession(newSession.value);
         if (result.status === "ok") {
-          // Capture the newly-created session id so future saves update it
           sessionIdRef.value = result.data;
           currentSessionNumber.value = nextSessionNumber.value;
           lastAutosaveAt.value = Date.now();
+          dirtyImages.value.clear();
           captureSnapshot();
           return true;
         } else {
@@ -316,6 +316,12 @@ async function handleAddSession() {
   if (autosaveTimer) {
     clearTimeout(autosaveTimer);
     autosaveTimer = null;
+  }
+  if (!isDirty.value && sessionIdRef.value) {
+    showToastMsg('Session saved!', 'success');
+    savedSuccessfully.value = true;
+    router.push({ name: 'client-sessions', params: { id: clientId } });
+    return;
   }
   const ok = await performSave();
   if (ok) {
@@ -399,61 +405,61 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-  <!-- Leave confirmation dialog -->
-  <div v-if="showLeaveConfirm" class="fixed inset-0 bg-black/50 z-50 flex items-center justify-center">
-    <div class="bg-white rounded-xl shadow-xl p-6 max-w-sm w-full mx-4 space-y-4">
-      <h2 class="text-lg font-semibold text-gray-900">Unsaved Changes</h2>
-      <p class="text-sm text-gray-600">You have unsaved changes. Would you like to save before leaving?</p>
-      <div class="flex flex-col gap-2">
-        <button
-          @click="() => { showLeaveConfirm = false; handleAddSession(); }"
-          class="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 transition-colors"
-        >
-          Save Session
-        </button>
-        <button
-          @click="confirmLeave"
-          class="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
-        >
-          Discard Changes
-        </button>
-        <button
-          @click="showLeaveConfirm = false"
-          class="px-4 py-2 text-sm font-medium text-gray-500 hover:text-gray-700 transition-colors"
-        >
-          Cancel
-        </button>
-      </div>
-    </div>
-  </div>
+  <ConfirmDialog
+    :show="showLeaveConfirm"
+    title="Unsaved Changes"
+    message="You have unsaved changes. Would you like to save before leaving?"
+    @close="showLeaveConfirm = false"
+  >
+    <template #actions>
+      <button
+        @click="() => { showLeaveConfirm = false; handleAddSession(); }"
+        class="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 transition-colors"
+      >
+        Save Session
+      </button>
+      <button
+        @click="confirmLeave"
+        class="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+      >
+        Discard Changes
+      </button>
+      <button
+        @click="showLeaveConfirm = false"
+        class="px-4 py-2 text-sm font-medium text-gray-500 hover:text-gray-700 transition-colors"
+      >
+        Cancel
+      </button>
+    </template>
+  </ConfirmDialog>
 
-  <!-- Window close confirmation dialog -->
-  <div v-if="showCloseConfirm" class="fixed inset-0 bg-black/50 z-50 flex items-center justify-center">
-    <div class="bg-white rounded-xl shadow-xl p-6 max-w-sm w-full mx-4 space-y-4">
-      <h2 class="text-lg font-semibold text-gray-900">Unsaved Changes</h2>
-      <p class="text-sm text-gray-600">You have unsaved changes. What would you like to do before closing?</p>
-      <div class="flex flex-col gap-2">
-        <button
-          @click="saveAndClose"
-          class="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 transition-colors"
-        >
-          Save &amp; Close
-        </button>
-        <button
-          @click="discardAndClose"
-          class="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
-        >
-          Discard &amp; Close
-        </button>
-        <button
-          @click="cancelClose"
-          class="px-4 py-2 text-sm font-medium text-gray-500 hover:text-gray-700 transition-colors"
-        >
-          Cancel
-        </button>
-      </div>
-    </div>
-  </div>
+  <ConfirmDialog
+    :show="showCloseConfirm"
+    title="Unsaved Changes"
+    message="You have unsaved changes. What would you like to do before closing?"
+    @close="showCloseConfirm = false"
+  >
+    <template #actions>
+      <button
+        @click="saveAndClose"
+        class="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 transition-colors"
+      >
+        Save &amp; Close
+      </button>
+      <button
+        @click="discardAndClose"
+        class="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+      >
+        Discard &amp; Close
+      </button>
+      <button
+        @click="cancelClose"
+        class="px-4 py-2 text-sm font-medium text-gray-500 hover:text-gray-700 transition-colors"
+      >
+        Cancel
+      </button>
+    </template>
+  </ConfirmDialog>
 
   <div class="p-8 max-w-6xl mx-auto">
     <div class="flex items-center mb-6">
