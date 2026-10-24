@@ -4,13 +4,13 @@ import { Camera, X, Image as ImageIcon, Settings } from 'lucide-vue-next';
 import CameraFrame from './CameraFrame.vue';
 import { useCamera } from '@/composables/useCamera';
 import { useCameraSettings } from '@/stores/camera';
-import { clampCrop, defaultProfile, resolutions, type CameraPreferences, type CameraProfile, type Crop, type Resolution } from '@/lib/cameraSettings';
+import { clampCrop, defaultProfile, fitCaptureResolution, resolutions, type CameraPreferences, type CameraProfile, type Crop, type Resolution } from '@/lib/cameraSettings';
 
 const props = defineProps<{ show: boolean; settingsOnly?: boolean }>();
 const emit = defineEmits<{ (e: 'close'): void; (e: 'photo-taken', data: string, crop: Crop | null): void }>();
 const store = useCameraSettings();
 const camera = useCamera();
-const { stream, devices, actual, capabilities, photoCapabilities, error, notice, busy } = camera;
+const { stream, devices, actual, capabilities, error, notice, busy } = camera;
 const videoRef = ref<HTMLVideoElement | null>(null);
 const fileInput = ref<HTMLInputElement | null>(null);
 const dialogRef = ref<HTMLElement | null>(null);
@@ -35,13 +35,15 @@ const streamChoices = computed(() => resolutions.filter(r => {
   const c = capabilities.value;
   return r.width >= (c?.width?.min ?? 0) && r.width <= (c?.width?.max ?? Infinity) && r.height >= (c?.height?.min ?? 0) && r.height <= (c?.height?.max ?? Infinity);
 }));
-const photoChoices = computed(() => {
-  const c = photoCapabilities.value;
-  if (!c) return [];
-  const choices = resolutions.filter(r => r.width >= c.imageWidth.min && r.width <= c.imageWidth.max && r.height >= c.imageHeight.min && r.height <= c.imageHeight.max);
-  const max = { width: c.imageWidth.max, height: c.imageHeight.max };
-  if (max.width && max.height && !choices.some(r => r.width === max.width && r.height === max.height)) choices.push(max);
-  return choices;
+const canConfigureCapture = computed(() => typeof stream.value?.getVideoTracks()[0]?.applyConstraints === 'function');
+const captureChoices = computed(() => {
+  const c = capabilities.value;
+  const candidates = [...resolutions];
+  if (c?.width?.max && c?.height?.max) candidates.push({ width: c.width.max, height: c.height.max });
+  const fitted = candidates.map(r => fitCaptureResolution(r, aspect.value));
+  return fitted.filter((r, index) => r.width >= (c?.width?.min ?? 0) && r.height >= (c?.height?.min ?? 0) &&
+    r.width <= (c?.width?.max ?? Infinity) && r.height <= (c?.height?.max ?? Infinity) &&
+    fitted.findIndex(other => other.width === r.width && other.height === r.height) === index);
 });
 const resolutionKey = (r: Resolution | null) => r ? `${r.width}x${r.height}` : '';
 function parseResolution(value: string): Resolution | null {
@@ -197,15 +199,15 @@ onBeforeUnmount(() => { operation++; camera.stop(); navigator.mediaDevices?.remo
             </select>
           </label>
           <label class="block text-sm font-medium">Capture resolution
-            <select :value="photoCapabilities ? resolutionKey(profile.capture) : ''" :disabled="busy || !photoCapabilities" class="block w-full mt-1 border rounded p-2" @change="updateProfile({ capture: parseResolution(($event.target as HTMLSelectElement).value) })">
-              <option value="">{{ photoCapabilities ? 'Highest available' : 'Same as streaming resolution' }}</option>
-              <option v-if="photoCapabilities && profile.capture && !photoChoices.some(r => resolutionKey(r) === resolutionKey(profile.capture))" :value="resolutionKey(profile.capture)">{{ profile.capture.width }} × {{ profile.capture.height }} (requested)</option>
-              <option v-for="r in photoChoices" :key="resolutionKey(r)" :value="resolutionKey(r)">{{ r.width }} × {{ r.height }}</option>
+            <select :value="resolutionKey(profile.capture)" :disabled="busy || !canConfigureCapture" class="block w-full mt-1 border rounded p-2" @change="updateProfile({ capture: parseResolution(($event.target as HTMLSelectElement).value) })">
+              <option value="">{{ canConfigureCapture ? 'Highest available' : 'Same as streaming resolution' }}</option>
+              <option v-if="profile.capture && !captureChoices.some(r => resolutionKey(r) === resolutionKey(profile.capture))" :value="resolutionKey(profile.capture)">{{ profile.capture.width }} × {{ profile.capture.height }} (requested)</option>
+              <option v-for="r in captureChoices" :key="resolutionKey(r)" :value="resolutionKey(r)">{{ r.width }} × {{ r.height }}</option>
             </select>
           </label>
         </div>
-        <p v-if="!photoCapabilities" class="text-xs text-gray-600">Separate still resolution is unavailable. Photos use the streaming resolution.</p>
-        <p v-else class="text-xs text-gray-600">Framing is adjusted for the captured aspect ratio. If needed, the camera briefly switches to the capture resolution, then restores the preview.</p>
+        <p v-if="!canConfigureCapture" class="text-xs text-gray-600">Capture resolution cannot be changed on this camera. Photos use the streaming resolution.</p>
+        <p v-else class="text-xs text-gray-600">The full image is saved with an editable frame. Capture sizes preserve the preview’s aspect ratio; the preview resolution is restored afterward.</p>
         <p class="text-sm text-gray-600">Drag the 2:3 frame or its corner to resize. Arrow keys move; Alt + arrows resize.</p>
         <button class="text-sm text-blue-600 underline" @click="updateProfile({ crop: clampCrop(null, aspect) })">Reset framing</button>
       </div>

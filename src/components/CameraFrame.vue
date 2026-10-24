@@ -47,6 +47,7 @@ onBeforeUnmount(() => cleanup());
     :style="{ left: `${crop.x * 100}%`, top: `${crop.y * 100}%`, width: `${crop.width * 100}%`, height: `${crop.width * 1.5 * aspect * 100}%`, boxShadow: '0 0 0 9999px rgb(0 0 0 / 50%)' }"
     :tabindex="editable ? 0 : undefined" role="group" aria-label="Camera frame. Arrow keys move; Alt and arrow keys resize. Shift makes larger adjustments."
     @pointerdown.stop="drag($event, false)" @keydown="key">
+    <slot />
     <button v-if="editable" type="button" tabindex="-1" aria-label="Resize camera frame" class="absolute -bottom-2 -right-2 w-5 h-5 bg-blue-500 border-2 border-white cursor-se-resize touch-none" @pointerdown.stop="drag($event, true)"></button>
   </div>
 </template>

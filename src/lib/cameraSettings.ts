@@ -9,13 +9,9 @@ export const resolutions: Resolution[] = [
 ];
 export const defaultProfile = (): CameraProfile => ({ stream: { width: 1920, height: 1080 }, capture: null, crop: null });
 export const emptyPreferences = (): CameraPreferences => ({ version: 1, deviceId: '', profiles: {} });
-// Camera modes with different aspect ratios share a centered field of view.
-// Map the preview's crop through that common field without stretching it.
-export function mapCaptureCrop(crop: Crop, previewAspect: number, captureAspect: number): Crop {
-  const source = clampCrop(crop, previewAspect);
-  const width = Math.min(1, previewAspect / captureAspect);
-  const height = Math.min(1, captureAspect / previewAspect);
-  return { x: (1 - width) / 2 + source.x * width, y: (1 - height) / 2 + source.y * height, width: source.width * width };
+export function fitCaptureResolution(bounds: Resolution, aspect: number): Resolution {
+  const width = Math.min(bounds.width, bounds.height * aspect);
+  return { width: Math.max(1, Math.floor(width)), height: Math.max(1, Math.floor(width / aspect)) };
 }
 export function clampCrop(crop: Crop | null, aspect: number): Crop {
   const maxWidth = Math.min(1, 1 / (1.5 * aspect));

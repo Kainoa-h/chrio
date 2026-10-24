@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'bun:test';
 import { setActivePinia, createPinia } from 'pinia';
-import { clampCrop, mapCaptureCrop, defaultProfile, emptyPreferences, parsePreferences, settingsKey } from '../src/lib/cameraSettings';
+import { clampCrop, fitCaptureResolution, defaultProfile, emptyPreferences, parsePreferences, settingsKey } from '../src/lib/cameraSettings';
 import { useCameraSettings } from '../src/stores/camera';
 
 describe('camera framing', () => {
@@ -24,18 +24,11 @@ describe('camera framing', () => {
     }
     expect(saved).toEqual({ x: 0.8, y: 0.9, width: 0.7 });
   });
-  test('maps preview framing to wider and taller stills without changing its 2:3 ratio', () => {
-    const frame = { x: 0.25, y: 0.2, width: 0.25 };
-    for (const [preview, capture] of [[4 / 3, 16 / 9], [16 / 9, 4 / 3], [16 / 9, 16 / 9]]) {
-      const mapped = mapCaptureCrop(frame, preview, capture);
-      const visibleWidth = Math.min(1, preview / capture);
-      const visibleHeight = Math.min(1, capture / preview);
-      expect((mapped.x - (1 - visibleWidth) / 2) / visibleWidth).toBeCloseTo(frame.x);
-      expect((mapped.y - (1 - visibleHeight) / 2) / visibleHeight).toBeCloseTo(frame.y);
-      expect(mapped.width / visibleWidth).toBeCloseTo(frame.width);
-      expect(mapped.x + mapped.width).toBeLessThanOrEqual(1);
-      expect(mapped.y + mapped.width * 1.5 * capture).toBeLessThanOrEqual(1);
-    }
+  test('fits capture dimensions to the preview aspect without exceeding the request', () => {
+    expect(fitCaptureResolution({ width: 1920, height: 1080 }, 4 / 3)).toEqual({ width: 1440, height: 1080 });
+    expect(fitCaptureResolution({ width: 1920, height: 1920 }, 16 / 9)).toEqual({ width: 1920, height: 1080 });
+    expect(fitCaptureResolution({ width: 640, height: 480 }, 16 / 9)).toEqual({ width: 640, height: 360 });
+    expect(fitCaptureResolution({ width: 1920, height: 1080 }, 9 / 16)).toEqual({ width: 607, height: 1080 });
   });
   test('keeps a usable minimum width', () => {
     expect(clampCrop({ x: -1, y: -1, width: -1 }, 16 / 9)).toEqual({ x: 0, y: 0, width: 0.05 });

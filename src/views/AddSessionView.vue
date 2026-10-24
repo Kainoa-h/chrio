@@ -194,7 +194,7 @@ function handlePhotoTaken(photoData: string, crop: Crop | null = null) {
 function handleCropSave(data: { x: number, y: number, width: number }) {
   if (!activeImageType.value) return;
   cropData.value[activeImageType.value] = data;
-  dirtyImages.value.add(activeImageType.value);
+  (newSession.value as any)[`${activeImageType.value}_crop`] = JSON.stringify(data);
   autoSave();
 }
 

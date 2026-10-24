@@ -1,19 +1,19 @@
 import { ref, shallowRef } from 'vue';
 import { hasCameraPixels, waitForCameraFrame } from '@/lib/cameraPixels';
-import { clampCrop, mapCaptureCrop, type CameraProfile } from '@/lib/cameraSettings';
+import { clampCrop, fitCaptureResolution, type CameraProfile, type Crop } from '@/lib/cameraSettings';
+
+export type CapturedPhoto = { data: string; crop: Crop; width: number; height: number; fallback: boolean };
 
 export function useCamera() {
   const stream = shallowRef<MediaStream | null>(null);
   const devices = ref<MediaDeviceInfo[]>([]);
   const actual = ref({ width: 0, height: 0 });
   const capabilities = ref<MediaTrackCapabilities | null>(null);
-  const photoCapabilities = ref<{ imageWidth: { min: number; max: number }; imageHeight: { min: number; max: number } } | null>(null);
   const error = ref('');
   const notice = ref('');
   const busy = ref(false);
   let generation = 0;
   let queue: Promise<void> = Promise.resolve();
-  let imageCapture: ImageCapture | null = null;
 
   async function refreshDevices() {
     if (!navigator.mediaDevices) return;
@@ -23,10 +23,8 @@ export function useCamera() {
     generation++;
     stream.value?.getTracks().forEach(t => t.stop());
     stream.value = null;
-    imageCapture = null;
     actual.value = { width: 0, height: 0 };
     capabilities.value = null;
-    photoCapabilities.value = null;
     busy.value = false;
   }
   function start(deviceId: string, profile: CameraProfile): Promise<void> {
@@ -57,18 +55,6 @@ export function useCamera() {
         const settings = track.getSettings();
         actual.value = { width: settings.width || 0, height: settings.height || 0 };
         try { capabilities.value = track.getCapabilities?.() || null; } catch { capabilities.value = null; }
-        if ('ImageCapture' in window) {
-          try {
-            const capture = new ImageCapture(track);
-            const caps = await capture.getPhotoCapabilities();
-            const width = caps.imageWidth;
-            const height = caps.imageHeight;
-            if (token === generation && width?.max && height?.max) {
-              imageCapture = capture;
-              photoCapabilities.value = { imageWidth: { min: width.min ?? 1, max: width.max }, imageHeight: { min: height.min ?? 1, max: height.max } };
-            }
-          } catch { /* Separate still capture is optional. */ }
-        }
         if (token === generation) {
           track.addEventListener('ended', () => { if (token === generation) { stop(); error.value = 'The camera disconnected. Reconnect it or select another camera.'; } }, { once: true });
           try { await refreshDevices(); } catch { /* Keep the working preview if device enumeration fails. */ }
@@ -81,14 +67,15 @@ export function useCamera() {
     queue = queue.then(run, run);
     return queue;
   }
-  async function capture(video: HTMLVideoElement, profile: CameraProfile) {
+  async function capture(video: HTMLVideoElement, profile: CameraProfile): Promise<CapturedPhoto> {
     if (!stream.value || video.readyState < 2 || !video.videoWidth || !video.videoHeight) throw new Error('Wait for the camera preview to be ready.');
     const token = generation;
     const width = video.videoWidth;
     const height = video.videoHeight;
-    const crop = clampCrop(profile.crop, width / height);
-    // Freeze the fallback before takePhoto: still capture can interrupt or mute
-    // the live track, making a video draw performed afterwards black.
+    const aspect = width / height;
+    const crop = clampCrop(profile.crop, aspect);
+    // Preserve the entire original frame before changing camera settings.
+    // The mask is metadata only and never participates in canvas rendering.
     const canvas = document.createElement('canvas');
     canvas.width = width;
     canvas.height = height;
@@ -98,57 +85,22 @@ export function useCamera() {
     const fallbackData = canvas.toDataURL('image/jpeg', 1);
     const fallbackHasPixels = hasCameraPixels(canvas);
     const track = stream.value.getVideoTracks()[0];
-    const caps = photoCapabilities.value;
-    const target = profile.capture ?? (caps ? { width: caps.imageWidth.max, height: caps.imageHeight.max } : { width, height });
+    const target = fitCaptureResolution(profile.capture ?? {
+      width: capabilities.value?.width?.max ?? width,
+      height: capabilities.value?.height?.max ?? height,
+    }, aspect);
     const ensureCurrent = () => {
       if (token !== generation) throw new Error('The camera changed during capture. Please try again.');
     };
-    if (imageCapture && photoCapabilities.value) {
-      try {
-        const caps = photoCapabilities.value;
-        const blob = await imageCapture.takePhoto({ imageWidth: profile.capture?.width ?? caps.imageWidth.max, imageHeight: profile.capture?.height ?? caps.imageHeight.max });
-        ensureCurrent();
-        if (!blob.size) throw new Error('The camera returned an empty photo.');
-        const data = await new Promise<string>((resolve, reject) => {
-          const reader = new FileReader();
-          reader.onload = () => resolve(reader.result as string);
-          reader.onerror = () => reject(new Error('Could not read the captured photo.'));
-          reader.readAsDataURL(blob);
-        });
-        const image = new Image();
-        image.src = data;
-        await image.decode();
-        ensureCurrent();
-        if (!image.naturalWidth || !image.naturalHeight) throw new Error('The camera returned an invalid photo.');
-        if (!hasCameraPixels(image)) throw new Error('The camera returned a blank still photo.');
-        // Preserve a native JPEG directly. Avoid routing still photos through
-        // ImageBitmap/canvas, which can lose the camera's decoded pixels.
-        let photoData = data;
-        if (blob.type !== 'image/jpeg') {
-          canvas.width = image.naturalWidth;
-          canvas.height = image.naturalHeight;
-          ctx.drawImage(image, 0, 0);
-          photoData = canvas.toDataURL('image/jpeg', 1);
-        }
-        return { data: photoData, fallback: false, crop: mapCaptureCrop(crop, width / height, image.naturalWidth / image.naturalHeight), width: image.naturalWidth, height: image.naturalHeight };
-      } catch {
-        ensureCurrent();
-        // Some cameras advertise still capture but return a valid, black JPEG.
-        // Recover using fresh video frames, requesting the capture resolution.
-      }
-    } else if (!profile.capture && fallbackHasPixels) {
-      ensureCurrent();
-      return { data: fallbackData, fallback: false, crop, width, height };
-    }
     const originalConstraints = track.getConstraints();
     let changed = false;
     try {
       if (target.width !== width || target.height !== height) {
         changed = true;
-        await track.applyConstraints({ ...originalConstraints, width: { ideal: target.width }, height: { ideal: target.height } });
+        await track.applyConstraints({ ...originalConstraints, width: { ideal: target.width }, height: { ideal: target.height }, aspectRatio: { exact: aspect } });
         ensureCurrent();
       }
-      // Skip the first frame after reconfiguration/still capture, which can be blank.
+      // Skip the first frame after reconfiguration, which can be blank.
       await waitForCameraFrame(video, track);
       for (let attempt = 0; attempt < 3; attempt++) {
         await waitForCameraFrame(video, track);
@@ -156,11 +108,12 @@ export function useCamera() {
         canvas.width = video.videoWidth;
         canvas.height = video.videoHeight;
         ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+        if (Math.abs(canvas.width - canvas.height * aspect) > 1) throw new Error('The camera changed the field of view.');
         if (!hasCameraPixels(canvas)) continue;
         return {
           data: canvas.toDataURL('image/jpeg', 1),
           fallback: canvas.width < target.width || canvas.height < target.height,
-          crop: mapCaptureCrop(crop, width / height, canvas.width / canvas.height),
+          crop: clampCrop(crop, canvas.width / canvas.height),
           width: canvas.width, height: canvas.height,
         };
       }
@@ -179,5 +132,5 @@ export function useCamera() {
       }
     }
   }
-  return { stream, devices, actual, capabilities, photoCapabilities, error, notice, busy, refreshDevices, start, stop, capture };
+  return { stream, devices, actual, capabilities, error, notice, busy, refreshDevices, start, stop, capture };
 }
