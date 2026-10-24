@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { onMounted, ref } from "vue";
+import { useRoute } from "vue-router";
 import { Info, Settings, Archive } from "lucide-vue-next";
 import CameraModal from "@/components/CameraModal.vue";
 import AboutModal from "@/components/AboutModal.vue";
@@ -10,6 +11,7 @@ import Toast from "@/components/Toast.vue";
 import { useToast } from "@/composables/useToast";
 
 const showTransfer = ref(false);
+const route = useRoute();
 const startupMessage = ref<string | null>(null);
 onMounted(async () => {
   try { startupMessage.value = await commands.backupStartupMessage(); } catch { /* No recovery message available. */ }
@@ -23,7 +25,7 @@ const { show, message, type, closeToast } = useToast();
 <template>
   <Toast :show="show" :message="message" :type="type" @close="closeToast" />
 
-  <div :inert="dataTransferActive" class="relative z-40 flex justify-end gap-2 px-4 pt-4">
+  <div v-if="route.name === 'home'" :inert="dataTransferActive" class="relative z-40 flex justify-end gap-2 px-4 pt-4">
     <button @click="showSettings = true" class="p-2 text-gray-500 hover:text-blue-600 bg-white/80 rounded-full shadow-sm" title="Settings" aria-label="Settings">
       <Settings class="w-6 h-6" />
     </button>
