@@ -31,6 +31,12 @@
             pkgs.libwebp
             pkgs.openssl
             pkgs.zlib
+          ] ++ pkgs.lib.optionals pkgs.stdenv.isDarwin [
+            # Tauri's DMG script needs Apple's SetFile. The /usr/bin shim
+            # otherwise picks up Nix's xcrun and SDK, which lack this tool.
+            (pkgs.writeShellScriptBin "SetFile" ''
+              exec /usr/bin/env -u DEVELOPER_DIR /usr/bin/xcrun SetFile "$@"
+            '')
           ];
         };
       }
