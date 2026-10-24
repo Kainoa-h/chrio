@@ -488,7 +488,7 @@ onBeforeUnmount(() => {
       <span class="ml-4 text-xs text-gray-400 self-center" v-else-if="lastAutosaveAt">All changes saved</span>
     </div>
 
-    <form @submit.prevent="handleAddSession" class="bg-white p-6 rounded-md shadow-sm space-y-4 border border-gray-200">
+    <div class="bg-white p-6 rounded-md shadow-sm space-y-4 border border-gray-200">
 
       <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
         <!-- Anterior -->
@@ -697,23 +697,7 @@ onBeforeUnmount(() => {
         Error: {{ error }}
       </div>
 
-      <div class="mt-6 flex justify-end gap-3">
-        <button 
-          type="button" 
-          @click="router.push({ name: 'client-sessions', params: { id: clientId } })"
-          class="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors shadow-sm"
-        >
-          Cancel
-        </button>
-        <button 
-          type="submit"
-          :disabled="saving"
-          class="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
-        >
-          {{ saving ? 'Saving...' : (isEditing ? 'Update Session' : 'Save Session') }}
-        </button>
-      </div>
-    </form>
+    </div>
 
     <CameraModal 
       :show="showCamera" 
