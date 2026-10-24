@@ -11,6 +11,7 @@ A local-first, application for chiropractic and physical therapy image compariso
 * **Client Management:** Create and manage client profiles with basic demographic info.
 * **Session Tracking:** Log detailed sessions including date, notes, height, and weight.
 * **Image Capture & Processing:** Capture clinical images directly within the app or import them. Includes built-in cropping tools.
+* **Camera Settings:** Choose a camera, adjust its saved 2:3 framing, and request streaming and capture resolutions. Preferences are remembered per camera. Capture saves the full video frame and stores its framing separately. Higher-resolution capture preserves the preview's aspect ratio, then restores the preview resolution. If the requested resolution is unavailable, a validated full preview frame is offered instead. The crop editor shows the original image, and framing edits update only crop metadata.
 * **Visual Comparison:** Compare images from different sessions side-by-side with synchronized controls to visualize progress over time.
 * **Local & Private:** All data is stored locally on your device using an embedded SQLite database & local file system. No cloud uploads, ensuring patient data privacy.
 
@@ -25,7 +26,7 @@ A local-first, application for chiropractic and physical therapy image compariso
   * [x] show age instead of bday?
   * [ ] client metrics: session counts, client counts, ...
   * [ ] navigational improvements (kb shortcuts, larger navigation buttons/areas, guestures)
-  * [ ] persist user's camera choice
+  * [x] persist user's camera choice
   * [ ] editable crop mask image/svg
   * [ ] have an actual app icon/logo
   * [ ] dynamic weighted ordering of clients
@@ -61,6 +62,8 @@ This applies only to Chrio; it does not disable Gatekeeper globally.
 
 ## Development Setup
 
+Open **Settings** beside About, or the settings button inside the camera dialog, to configure a camera. Drag the frame or its corner to adjust it, then choose **Save settings**. Arrow keys move the frame; Alt + arrows resize it, and Shift makes larger adjustments. Imported images continue to use the per-photo crop editor. Enable **Mirror image previews** to mirror live video, saved and imported photos, comparisons, and the framing editor. This device-wide preference is off by default and changes only the display; captures and saved originals stay unchanged.
+
 Ensure you have `Rust`, `Bun` (or Node.js), and typical build tools installed.
 
 1. **Install dependencies:**
@@ -74,6 +77,8 @@ Ensure you have `Rust`, `Bun` (or Node.js), and typical build tools installed.
     ```bash
     bun run tauri dev
     ```
+
+Run focused camera/settings tests with `bun test`, and type-check/build with `bun run build` (or run these commands through `nix develop --command`).
 
 ## License
 

@@ -1,213 +1,250 @@
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted, watch } from 'vue';
-import { Camera, X, Image as ImageIcon } from 'lucide-vue-next';
+import { computed, nextTick, onBeforeUnmount, ref, watch } from 'vue';
+import { Camera, X, Image as ImageIcon, Settings } from 'lucide-vue-next';
+import CameraFrame from './CameraFrame.vue';
+import { useCamera } from '@/composables/useCamera';
+import { useCameraSettings } from '@/stores/camera';
+import { clampCrop, defaultProfile, fitCaptureResolution, resolutions, type CameraPreferences, type CameraProfile, type Crop, type Resolution } from '@/lib/cameraSettings';
 
-const props = defineProps<{
-  show: boolean;
-}>();
-
-const emit = defineEmits<{
-  (e: 'close'): void;
-  (e: 'photo-taken', photoData: string): void;
-}>();
-
+const props = defineProps<{ show: boolean; settingsOnly?: boolean }>();
+const emit = defineEmits<{ (e: 'close'): void; (e: 'photo-taken', data: string, crop: Crop | null): void }>();
+const store = useCameraSettings();
+const camera = useCamera();
+const { stream, devices, actual, capabilities, error, notice, busy } = camera;
 const videoRef = ref<HTMLVideoElement | null>(null);
-const canvasRef = ref<HTMLCanvasElement | null>(null);
-const fileInputRef = ref<HTMLInputElement | null>(null);
-const stream = ref<MediaStream | null>(null);
-const error = ref<string | null>(null);
-const videoDevices = ref<MediaDeviceInfo[]>([]);
-const selectedDeviceId = ref<string>('');
-
-async function getDevices() {
-  try {
-    const devices = await navigator.mediaDevices.enumerateDevices();
-    videoDevices.value = devices.filter(device => device.kind === 'videoinput');
-    
-    // If we have a stream, try to sync selectedDeviceId with currently active track if not set
-    if (stream.value && !selectedDeviceId.value) {
-        const track = stream.value.getVideoTracks()[0];
-        if (track) {
-            const settings = track.getSettings();
-            if (settings.deviceId) {
-                selectedDeviceId.value = settings.deviceId;
-            }
-        }
-    }
-  } catch (e) {
-    console.error("Error getting devices:", e);
-  }
+const fileInput = ref<HTMLInputElement | null>(null);
+const dialogRef = ref<HTMLElement | null>(null);
+const editing = ref(false);
+const draft = ref<CameraPreferences>(clone(store.preferences));
+const activeDevice = ref('');
+const savingPhoto = ref(false);
+const ready = ref(false);
+const message = ref('');
+const pendingPhoto = ref<{ data: string; crop: Crop } | null>(null);
+let operation = 0;
+let previousFocus: HTMLElement | null = null;
+function clone<T>(value: T): T { return JSON.parse(JSON.stringify(value)); }
+const profile = computed<CameraProfile>(() => draft.value.profiles[activeDevice.value || draft.value.deviceId || 'default'] || defaultProfile());
+const aspect = computed(() => actual.value.width && actual.value.height ? actual.value.width / actual.value.height : 16 / 9);
+const crop = computed(() => clampCrop(profile.value.crop, aspect.value));
+const cropDimensions = computed(() => {
+  const width = Math.round(actual.value.width * crop.value.width);
+  return `${width} × ${Math.round(width * 1.5)}`;
+});
+const streamChoices = computed(() => resolutions.filter(r => {
+  const c = capabilities.value;
+  return r.width >= (c?.width?.min ?? 0) && r.width <= (c?.width?.max ?? Infinity) && r.height >= (c?.height?.min ?? 0) && r.height <= (c?.height?.max ?? Infinity);
+}));
+const canConfigureCapture = computed(() => typeof stream.value?.getVideoTracks()[0]?.applyConstraints === 'function');
+const captureChoices = computed(() => {
+  const c = capabilities.value;
+  const candidates = [...resolutions];
+  if (c?.width?.max && c?.height?.max) candidates.push({ width: c.width.max, height: c.height.max });
+  const fitted = candidates.map(r => fitCaptureResolution(r, aspect.value));
+  return fitted.filter((r, index) => r.width >= (c?.width?.min ?? 0) && r.height >= (c?.height?.min ?? 0) &&
+    r.width <= (c?.width?.max ?? Infinity) && r.height <= (c?.height?.max ?? Infinity) &&
+    fitted.findIndex(other => other.width === r.width && other.height === r.height) === index);
+});
+const resolutionKey = (r: Resolution | null) => r ? `${r.width}x${r.height}` : '';
+function parseResolution(value: string): Resolution | null {
+  if (!value) return null;
+  const [width, height] = value.split('x').map(Number);
+  return { width, height };
 }
-
-async function startCamera() {
-  stopCamera();
-  try {
-    const videoConstraints: MediaTrackConstraints = selectedDeviceId.value
-      ? { deviceId: { exact: selectedDeviceId.value } }
-      : { facingMode: 'environment' };
-
-    videoConstraints.width = { ideal: 4096 };
-    videoConstraints.height = { ideal: 2160 };
-
-    const constraints: MediaStreamConstraints = {
-      audio: false,
-      video: videoConstraints,
-    };
-    
-    stream.value = await navigator.mediaDevices.getUserMedia(constraints);
-    if (videoRef.value) {
-      videoRef.value.srcObject = stream.value;
-    }
-    error.value = null;
-    
-    // Update device list after getting permission, as labels might now be available
-    await getDevices();
-  } catch (e: any) {
-    error.value = "Could not access camera: " + e.message;
-    console.error("Camera error:", e);
-  }
+function updateProfile(update: Partial<CameraProfile>) {
+  draft.value.profiles[activeDevice.value || draft.value.deviceId || 'default'] = { ...profile.value, ...update };
 }
-
-function stopCamera() {
-  if (stream.value) {
-    stream.value.getTracks().forEach(track => track.stop());
-    stream.value = null;
+async function start(requestedId = draft.value.deviceId) {
+  const token = ++operation;
+  ready.value = false;
+  await camera.start(requestedId, clone(draft.value.profiles[requestedId || 'default'] || defaultProfile()));
+  if (token !== operation || !props.show) return;
+  activeDevice.value = stream.value?.getVideoTracks()[0]?.getSettings().deviceId || requestedId;
+  if (!draft.value.profiles[activeDevice.value || 'default']) updateProfile(defaultProfile());
+  if (activeDevice.value !== requestedId && requestedId && stream.value) {
+    const fallbackNotice = notice.value;
+    await camera.start(activeDevice.value, clone(profile.value));
+    if (token !== operation || !props.show) return;
+    notice.value = fallbackNotice;
   }
+  await nextTick();
+  if (videoRef.value) videoRef.value.srcObject = stream.value;
 }
-
-function takePhoto() {
-  if (!videoRef.value || !canvasRef.value) return;
-
+function loaded() {
   const video = videoRef.value;
-  const canvas = canvasRef.value;
-  const context = canvas.getContext('2d');
-
-  if (context) {
-    canvas.width = video.videoWidth;
-    canvas.height = video.videoHeight;
-    context.drawImage(video, 0, 0, canvas.width, canvas.height);
-    const photoData = canvas.toDataURL('image/jpeg', 1.0);
-    emit('photo-taken', photoData);
-    emit('close');
+  if (video?.videoWidth && video.videoHeight) {
+    actual.value = { width: video.videoWidth, height: video.videoHeight };
+    ready.value = video.readyState >= 2;
   }
 }
-
-function triggerFileUpload() {
-  fileInputRef.value?.click();
+function chooseCamera(event: Event) {
+  draft.value.deviceId = (event.target as HTMLSelectElement).value;
+  activeDevice.value = draft.value.deviceId;
+  void start();
 }
-
-function handleFileChange(event: Event) {
+function chooseStream(event: Event) {
+  updateProfile({ stream: parseResolution((event.target as HTMLSelectElement).value) });
+  void start(activeDevice.value);
+}
+async function finishSettings(save: boolean) {
+  if (save) {
+    try {
+      if (ready.value && stream.value) updateProfile({ crop: crop.value });
+      if (!draft.value.deviceId) draft.value.deviceId = activeDevice.value;
+      store.save(draft.value);
+    } catch { message.value = 'Could not save preferences on this device. Please try again.'; return; }
+  }
+  if (props.settingsOnly) { emit('close'); return; }
+  draft.value = clone(store.preferences);
+  editing.value = false;
+  message.value = '';
+  await start();
+}
+async function takePhoto() {
+  if (!videoRef.value || !ready.value || busy.value || savingPhoto.value) return;
+  savingPhoto.value = true;
+  const token = operation;
+  const frame = { ...crop.value };
+  try {
+    const result = await camera.capture(videoRef.value, { ...clone(profile.value), crop: frame });
+    if (token !== operation || !props.show) return;
+    if (result.fallback) {
+      message.value = `The requested capture resolution was unavailable. Photo captured at ${result.width} × ${result.height}.`;
+      pendingPhoto.value = { data: result.data, crop: result.crop };
+    } else { emit('photo-taken', result.data, result.crop); emit('close'); }
+  } catch (e) { message.value = e instanceof Error ? e.message : String(e); }
+  finally { savingPhoto.value = false; }
+}
+function acceptPhoto() {
+  if (!pendingPhoto.value) return;
+  emit('photo-taken', pendingPhoto.value.data, pendingPhoto.value.crop);
+  emit('close');
+}
+function importFile(event: Event) {
   const input = event.target as HTMLInputElement;
-  if (input.files && input.files[0]) {
-    const file = input.files[0];
-    const reader = new FileReader();
-    reader.onload = (e) => {
-      const result = e.target?.result as string;
-      if (result) {
-        emit('photo-taken', result);
-        emit('close');
-      }
-    };
-    reader.readAsDataURL(file);
+  const file = input.files?.[0];
+  if (!file) return;
+  const token = operation;
+  const reader = new FileReader();
+  reader.onload = () => {
+    if (token !== operation || !props.show) return;
+    emit('photo-taken', reader.result as string, null);
+    emit('close');
+  };
+  reader.onerror = () => { message.value = 'Could not read the selected image.'; };
+  reader.readAsDataURL(file);
+  input.value = '';
+}
+async function devicesChanged() {
+  try {
+    await camera.refreshDevices();
+    if (props.show && (!stream.value || !devices.value.some(d => d.deviceId === activeDevice.value))) await start();
+  } catch { message.value = 'Could not refresh camera devices.'; }
+}
+function keyboard(event: KeyboardEvent) {
+  if (event.key === 'Escape') { event.preventDefault(); if (editing.value) void finishSettings(false); else emit('close'); }
+  if (event.key === 'Tab') {
+    const nodes = dialogRef.value?.querySelectorAll<HTMLElement>('button:not([disabled]), select:not([disabled]), [tabindex="0"]');
+    if (!nodes?.length) return;
+    const first = nodes[0], last = nodes[nodes.length - 1];
+    if (event.shiftKey && (document.activeElement === first || document.activeElement === dialogRef.value)) { event.preventDefault(); last.focus(); }
+    else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first.focus(); }
   }
 }
-
-onMounted(() => {
-  if (props.show) {
-    startCamera();
-  }
-});
-
-// Watch for prop changes to start/stop camera
-watch(() => props.show, (newVal) => {
-  if (newVal) {
-    startCamera();
+watch(() => props.show, async show => {
+  if (show) {
+    previousFocus = document.activeElement as HTMLElement | null;
+    draft.value = clone(store.preferences);
+    activeDevice.value = draft.value.deviceId;
+    editing.value = !!props.settingsOnly;
+    pendingPhoto.value = null;
+    message.value = '';
+    navigator.mediaDevices?.addEventListener('devicechange', devicesChanged);
+    await nextTick();
+    dialogRef.value?.focus();
+    if (props.show) await start();
   } else {
-    stopCamera();
+    operation++;
+    camera.stop();
+    navigator.mediaDevices?.removeEventListener('devicechange', devicesChanged);
+    previousFocus?.focus();
   }
-});
-
-// Watch for camera selection changes
-watch(selectedDeviceId, () => {
-    if (props.show && stream.value) {
-        // Only restart if we are already showing and have a stream
-        // (avoids triggering on initial mount before permission)
-        // Check if the current stream device ID is different to avoid redundant restart
-        const track = stream.value.getVideoTracks()[0];
-        const currentId = track?.getSettings().deviceId;
-        if (currentId !== selectedDeviceId.value) {
-             startCamera();
-        }
-    }
-});
-
-onUnmounted(() => {
-  stopCamera();
-});
+}, { immediate: true });
+onBeforeUnmount(() => { operation++; camera.stop(); navigator.mediaDevices?.removeEventListener('devicechange', devicesChanged); });
 </script>
 
 <template>
-  <div v-if="show" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black bg-opacity-75 backdrop-blur-sm">
-    <div class="bg-white rounded-lg shadow-xl w-full max-w-lg overflow-hidden relative flex flex-col max-h-[90vh]">
-      <!-- Header -->
-      <div class="p-4 border-b border-gray-200 flex items-center justify-between bg-gray-50">
-        <div class="flex-1">
-             <select 
-                v-if="videoDevices.length > 0" 
-                v-model="selectedDeviceId" 
-                class="block w-full max-w-[200px] rounded-md border-gray-300 py-1.5 text-base leading-5 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 sm:text-sm"
-            >
-                <option v-for="device in videoDevices" :key="device.deviceId" :value="device.deviceId">
-                    {{ device.label || 'Camera ' + (videoDevices.indexOf(device) + 1) }}
-                </option>
+  <div v-if="show" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-sm">
+    <section ref="dialogRef" role="dialog" aria-modal="true" aria-labelledby="camera-title" tabindex="-1" class="bg-white rounded-lg shadow-xl w-full max-h-[90vh] overflow-y-auto outline-none" :class="editing ? 'max-w-2xl' : 'max-w-5xl'" @keydown="keyboard">
+      <header class="p-4 border-b flex items-center justify-between gap-3">
+        <h2 id="camera-title" class="font-semibold">{{ editing ? 'Camera settings' : 'Take photo' }}</h2>
+        <div class="flex gap-2">
+          <button v-if="!editing" title="Camera settings" aria-label="Camera settings" class="p-2 hover:bg-gray-100 rounded" :disabled="savingPhoto || !!pendingPhoto" @click="editing = true; message = ''"><Settings class="w-5 h-5" /></button>
+          <button aria-label="Close" class="p-2 hover:bg-gray-100 rounded" @click="editing ? finishSettings(false) : emit('close')"><X class="w-5 h-5" /></button>
+        </div>
+      </header>
+      <div v-if="editing" class="p-4 space-y-3">
+        <label class="flex items-center gap-2 text-sm font-medium">
+          <input v-model="draft.mirrorPreviews" type="checkbox" /> Mirror image previews
+        </label>
+        <p class="text-xs text-gray-600">Mirror all photo and live camera previews. Captured files stay unchanged.</p>
+        <label class="block text-sm font-medium">Camera
+          <select :value="activeDevice" class="block w-full mt-1 border rounded p-2" :disabled="busy" @change="chooseCamera">
+            <option v-if="!devices.length" value="">Default camera</option>
+            <option v-for="(device, index) in devices" :key="device.deviceId" :value="device.deviceId">{{ device.label || `Camera ${index + 1}` }}</option>
+          </select>
+        </label>
+        <div class="grid sm:grid-cols-2 gap-3">
+          <label class="block text-sm font-medium">Streaming resolution
+            <select :value="resolutionKey(profile.stream)" :disabled="busy || !stream" class="block w-full mt-1 border rounded p-2" @change="chooseStream">
+              <option value="">Auto</option>
+              <option v-if="profile.stream && !streamChoices.some(r => resolutionKey(r) === resolutionKey(profile.stream))" :value="resolutionKey(profile.stream)">{{ profile.stream.width }} × {{ profile.stream.height }} (requested)</option>
+              <option v-for="r in streamChoices" :key="resolutionKey(r)" :value="resolutionKey(r)">{{ r.width }} × {{ r.height }}</option>
             </select>
-            <span v-else class="font-semibold text-gray-700">Take Photo</span>
+          </label>
+          <label class="block text-sm font-medium">Capture resolution
+            <select :value="resolutionKey(profile.capture)" :disabled="busy || !canConfigureCapture" class="block w-full mt-1 border rounded p-2" @change="updateProfile({ capture: parseResolution(($event.target as HTMLSelectElement).value) })">
+              <option value="">{{ canConfigureCapture ? 'Highest available' : 'Same as streaming resolution' }}</option>
+              <option v-if="profile.capture && !captureChoices.some(r => resolutionKey(r) === resolutionKey(profile.capture))" :value="resolutionKey(profile.capture)">{{ profile.capture.width }} × {{ profile.capture.height }} (requested)</option>
+              <option v-for="r in captureChoices" :key="resolutionKey(r)" :value="resolutionKey(r)">{{ r.width }} × {{ r.height }}</option>
+            </select>
+          </label>
         </div>
-        <button 
-            @click="$emit('close')" 
-            class="p-2 rounded-full text-gray-500 hover:bg-gray-200 transition-colors"
-        >
-            <X class="h-5 w-5" />
-        </button>
+        <p v-if="!canConfigureCapture" class="text-xs text-gray-600">Capture resolution cannot be changed on this camera. Photos use the streaming resolution.</p>
+        <p v-else class="text-xs text-gray-600">The full image is saved with an editable frame. Capture sizes preserve the preview’s aspect ratio; the preview resolution is restored afterward.</p>
+        <p class="text-sm text-gray-600">Drag the 2:3 frame or its corner to resize. Arrow keys move; Alt + arrows resize.</p>
+        <button class="text-sm text-blue-600 underline" @click="updateProfile({ crop: clampCrop(null, aspect) })">Reset framing</button>
       </div>
-
-      <div class="relative bg-black flex items-center justify-center flex-grow min-h-[300px]">
-        <video ref="videoRef" autoplay playsinline class="w-full h-full object-contain max-h-[60vh]"></video>
-        <div v-if="error" class="absolute inset-0 flex items-center justify-center text-red-500 p-4 text-center">
-          {{ error }}
+      <div class="bg-black flex items-start justify-center overflow-hidden">
+        <!-- The wrapper defines the source bounds. Keep the video out of layout so
+             its intrinsic height cannot stretch the crop coordinate system. -->
+        <div class="relative flex-none overflow-hidden" :style="{ width: `min(100%, ${(editing ? 42 : 65) * aspect}vh)`, aspectRatio: String(aspect), transform: draft.mirrorPreviews ? 'scaleX(-1)' : undefined }">
+          <video ref="videoRef" autoplay playsinline muted class="absolute inset-0 block w-full h-full object-fill" @loadedmetadata="loaded" @loadeddata="loaded" @playing="loaded"></video>
+          <CameraFrame v-if="ready && stream" :crop="crop" :aspect="aspect" :mirrored="draft.mirrorPreviews" :editable="editing && !busy" @update="updateProfile({ crop: $event })" />
         </div>
       </div>
-
-      <div class="p-6 flex items-center justify-center gap-8 bg-gray-50 border-t border-gray-200">
-        <button 
-            @click="triggerFileUpload"
-            class="p-3 rounded-full text-gray-600 hover:bg-gray-200 transition-colors"
-            title="Upload from device"
-        >
-            <ImageIcon class="h-6 w-6" />
-        </button>
-        
-        <button 
-          @click="takePhoto"
-          class="h-16 w-16 rounded-full bg-white border-4 border-blue-500 flex items-center justify-center shadow-lg hover:bg-gray-100 transition-transform active:scale-95"
-          :disabled="!!error"
-        >
-          <Camera class="h-8 w-8 text-blue-600" />
-        </button>
-
-        <!-- Spacer to balance layout -->
-        <div class="w-12"></div>
+      <div class="px-4 py-2 text-sm space-y-1" aria-live="polite">
+        <p v-if="busy">Connecting to camera…</p>
+        <p v-if="error" class="text-red-700">{{ error }} <button class="underline" @click="start()">Retry</button></p>
+        <p v-if="notice" class="text-amber-800">{{ notice }}</p>
+        <p v-if="message" class="text-amber-800">{{ message }}</p>
+        <p v-if="ready && stream" class="text-gray-600">Streaming: {{ actual.width }} × {{ actual.height }} · Framed stream: {{ cropDimensions }} px</p>
       </div>
-      
-      <!-- Hidden canvas & file input -->
-      <canvas ref="canvasRef" class="hidden"></canvas>
-      <input 
-        type="file" 
-        ref="fileInputRef" 
-        accept="image/*" 
-        class="hidden" 
-        @change="handleFileChange"
-      >
-    </div>
+      <footer class="p-4 border-t flex items-center justify-end gap-3">
+        <template v-if="editing">
+          <button class="px-4 py-2 border rounded" @click="finishSettings(false)">Cancel</button>
+          <button class="px-4 py-2 bg-blue-600 text-white rounded disabled:opacity-50" :disabled="busy" @click="finishSettings(true)">Save settings</button>
+        </template>
+        <template v-else-if="pendingPhoto">
+          <button class="px-4 py-2 border rounded" @click="pendingPhoto = null; message = ''">Retake</button>
+          <button class="px-4 py-2 bg-blue-600 text-white rounded" @click="acceptPhoto">Use photo</button>
+        </template>
+        <template v-else>
+          <button class="p-3 rounded hover:bg-gray-100" title="Import image" aria-label="Import image" :disabled="savingPhoto" @click="fileInput?.click()"><ImageIcon class="w-6 h-6" /></button>
+          <button class="px-5 py-3 rounded bg-blue-600 text-white flex gap-2 disabled:opacity-50" :disabled="!ready || !stream || busy || savingPhoto || !!error" @click="takePhoto"><Camera class="w-6 h-6" />{{ savingPhoto ? 'Capturing…' : 'Take photo' }}</button>
+        </template>
+      </footer>
+      <input ref="fileInput" type="file" accept="image/*" class="hidden" @change="importFile">
+    </section>
   </div>
 </template>
