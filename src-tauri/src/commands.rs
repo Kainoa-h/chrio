@@ -8,6 +8,48 @@ use specta::specta;
 use std::fs;
 use tauri::{AppHandle, Manager, State};
 
+fn validate_client_name(name: &str) -> Result<(), String> {
+    if !name.is_empty() && name.bytes().all(|byte| byte.is_ascii_alphanumeric()) {
+        Ok(())
+    } else {
+        Err("Client names must contain only letters A–Z, a–z, and numbers 0–9.".into())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::validate_client_name;
+
+    #[test]
+    fn client_names_allow_only_nonempty_ascii_alphanumerics() {
+        for name in ["Alice", "BOB", "Client123", "123"] {
+            assert!(validate_client_name(name).is_ok(), "Rejected {name:?}");
+        }
+        for name in [
+            "",
+            "Anne Marie",
+            "Anne-Marie",
+            "O'Neil",
+            "照片",
+            "José",
+            "a/b",
+            "a\\b",
+            "a:b",
+            "a?b",
+            "a*b",
+            "a\"b",
+            "a<b",
+            "a>b",
+            "a|b",
+            "a.",
+            "a ",
+            "a\0b",
+        ] {
+            assert!(validate_client_name(name).is_err(), "Accepted {name:?}");
+        }
+    }
+}
+
 #[tauri::command]
 #[specta]
 pub async fn get_clients(
@@ -26,6 +68,8 @@ pub async fn add_client(
     client: CreateClientDto,
 ) -> Result<i32, String> {
     let _access = backup.access()?;
+    validate_client_name(&client.firstname)?;
+    validate_client_name(&client.lastname)?;
     Client::create(&*db, client)
         .await
         .map_err(|e| e.to_string())
@@ -39,6 +83,8 @@ pub async fn update_client(
     client: UpdateClientDto,
 ) -> Result<(), String> {
     let _access = backup.access()?;
+    validate_client_name(&client.firstname)?;
+    validate_client_name(&client.lastname)?;
     Client::update(&*db, client)
         .await
         .map_err(|e| e.to_string())
@@ -112,6 +158,7 @@ pub async fn save_image(
     base64_image: String,
 ) -> Result<String, String> {
     let _access = backup.access()?;
+    validate_client_name(&client_firstname)?;
     let app_data_dir = app_handle
         .path()
         .app_data_dir()

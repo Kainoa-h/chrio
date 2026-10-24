@@ -42,7 +42,10 @@ pub async fn lock_data_directory(root: &Path) -> Result<DataDirectoryLock> {
     for attempt in 0..=20 {
         match file.try_lock_exclusive() {
             Ok(()) => return Ok(DataDirectoryLock { _file: file }),
-            Err(error) if error.kind() == std::io::ErrorKind::WouldBlock && attempt < 20 => {
+            Err(error)
+                if error.raw_os_error() == fs2::lock_contended_error().raw_os_error()
+                    && attempt < 20 =>
+            {
                 tokio::time::sleep(std::time::Duration::from_millis(100)).await;
             }
             Err(error) => {
@@ -1543,6 +1546,19 @@ mod tests {
         assert!(state.access().is_err());
         drop(guard);
         assert!(state.access().is_ok());
+    }
+
+    #[tokio::test]
+    async fn data_directory_lock_waits_for_the_previous_process_to_release() {
+        let root = tempfile::tempdir().unwrap();
+        let lock = lock_data_directory(root.path()).await.unwrap();
+        let release = tokio::spawn(async move {
+            tokio::time::sleep(std::time::Duration::from_millis(150)).await;
+            drop(lock);
+        });
+        let replacement = lock_data_directory(root.path()).await.unwrap();
+        release.await.unwrap();
+        drop(replacement);
     }
 
     #[tokio::test]
