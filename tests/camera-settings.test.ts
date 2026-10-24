@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'bun:test';
 import { setActivePinia, createPinia } from 'pinia';
-import { clampCrop, defaultProfile, emptyPreferences, parsePreferences, settingsKey } from '../src/lib/cameraSettings';
+import { clampCrop, mapCaptureCrop, defaultProfile, emptyPreferences, parsePreferences, settingsKey } from '../src/lib/cameraSettings';
 import { useCameraSettings } from '../src/stores/camera';
 
 describe('camera framing', () => {
@@ -23,6 +23,19 @@ describe('camera framing', () => {
       expect(c.y + c.width * 1.5 * aspect).toBeLessThanOrEqual(1);
     }
     expect(saved).toEqual({ x: 0.8, y: 0.9, width: 0.7 });
+  });
+  test('maps preview framing to wider and taller stills without changing its 2:3 ratio', () => {
+    const frame = { x: 0.25, y: 0.2, width: 0.25 };
+    for (const [preview, capture] of [[4 / 3, 16 / 9], [16 / 9, 4 / 3], [16 / 9, 16 / 9]]) {
+      const mapped = mapCaptureCrop(frame, preview, capture);
+      const visibleWidth = Math.min(1, preview / capture);
+      const visibleHeight = Math.min(1, capture / preview);
+      expect((mapped.x - (1 - visibleWidth) / 2) / visibleWidth).toBeCloseTo(frame.x);
+      expect((mapped.y - (1 - visibleHeight) / 2) / visibleHeight).toBeCloseTo(frame.y);
+      expect(mapped.width / visibleWidth).toBeCloseTo(frame.width);
+      expect(mapped.x + mapped.width).toBeLessThanOrEqual(1);
+      expect(mapped.y + mapped.width * 1.5 * capture).toBeLessThanOrEqual(1);
+    }
   });
   test('keeps a usable minimum width', () => {
     expect(clampCrop({ x: -1, y: -1, width: -1 }, 16 / 9)).toEqual({ x: 0, y: 0, width: 0.05 });

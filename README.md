@@ -11,7 +11,7 @@ A local-first, application for chiropractic and physical therapy image compariso
 * **Client Management:** Create and manage client profiles with basic demographic info.
 * **Session Tracking:** Log detailed sessions including date, notes, height, and weight.
 * **Image Capture & Processing:** Capture clinical images directly within the app or import them. Includes built-in cropping tools.
-* **Camera Settings:** Choose a camera, adjust its saved 2:3 framing, and request streaming and still-capture resolutions. Preferences are remembered per camera. Separate still capture is used when supported; otherwise photos use the streaming resolution. Full images remain available for later crop adjustments.
+* **Camera Settings:** Choose a camera, adjust its saved 2:3 framing, and request streaming and still-capture resolutions. Preferences are remembered per camera. If still capture fails or returns a blank image, capture retries with fresh video frames at the requested resolution, then restores the preview. If that resolution is unavailable, a visible preview frame is offered instead. Full images remain available for later crop adjustments.
 * **Visual Comparison:** Compare images from different sessions side-by-side with synchronized controls to visualize progress over time.
 * **Local & Private:** All data is stored locally on your device using an embedded SQLite database & local file system. No cloud uploads, ensuring patient data privacy.
 

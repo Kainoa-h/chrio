@@ -104,12 +104,12 @@ async function takePhoto() {
   const token = operation;
   const frame = { ...crop.value };
   try {
-    const result = await camera.capture(videoRef.value, clone(profile.value));
+    const result = await camera.capture(videoRef.value, { ...clone(profile.value), crop: frame });
     if (token !== operation || !props.show) return;
     if (result.fallback) {
-      message.value = 'Separate still capture was unavailable or did not match the preview. Captured at streaming resolution.';
-      pendingPhoto.value = { data: result.data, crop: frame };
-    } else { emit('photo-taken', result.data, frame); emit('close'); }
+      message.value = `The requested capture resolution was unavailable. Photo captured at ${result.width} × ${result.height}.`;
+      pendingPhoto.value = { data: result.data, crop: result.crop };
+    } else { emit('photo-taken', result.data, result.crop); emit('close'); }
   } catch (e) { message.value = e instanceof Error ? e.message : String(e); }
   finally { savingPhoto.value = false; }
 }
@@ -205,7 +205,7 @@ onBeforeUnmount(() => { operation++; camera.stop(); navigator.mediaDevices?.remo
           </label>
         </div>
         <p v-if="!photoCapabilities" class="text-xs text-gray-600">Separate still resolution is unavailable. Photos use the streaming resolution.</p>
-        <p v-else class="text-xs text-gray-600">Still resolution is a request. If capture fails or its aspect ratio differs, photos use the streaming resolution.</p>
+        <p v-else class="text-xs text-gray-600">Framing is adjusted for the captured aspect ratio. If needed, the camera briefly switches to the capture resolution, then restores the preview.</p>
         <p class="text-sm text-gray-600">Drag the 2:3 frame or its corner to resize. Arrow keys move; Alt + arrows resize.</p>
         <button class="text-sm text-blue-600 underline" @click="updateProfile({ crop: clampCrop(null, aspect) })">Reset framing</button>
       </div>

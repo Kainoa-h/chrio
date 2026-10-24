@@ -1,5 +1,6 @@
 import { ref, shallowRef } from 'vue';
-import type { CameraProfile } from '@/lib/cameraSettings';
+import { hasCameraPixels, waitForCameraFrame } from '@/lib/cameraPixels';
+import { clampCrop, mapCaptureCrop, type CameraProfile } from '@/lib/cameraSettings';
 
 export function useCamera() {
   const stream = shallowRef<MediaStream | null>(null);
@@ -80,35 +81,103 @@ export function useCamera() {
     queue = queue.then(run, run);
     return queue;
   }
-  async function capture(video: HTMLVideoElement, profile: CameraProfile): Promise<{ data: string; fallback: boolean }> {
-    if (!stream.value || video.readyState < 2 || !video.videoWidth) throw new Error('Wait for the camera preview to be ready.');
+  async function capture(video: HTMLVideoElement, profile: CameraProfile) {
+    if (!stream.value || video.readyState < 2 || !video.videoWidth || !video.videoHeight) throw new Error('Wait for the camera preview to be ready.');
     const token = generation;
-    let source: CanvasImageSource = video;
-    let width = video.videoWidth;
-    let height = video.videoHeight;
-    let bitmap: ImageBitmap | null = null;
-    let fallback = false;
+    const width = video.videoWidth;
+    const height = video.videoHeight;
+    const crop = clampCrop(profile.crop, width / height);
+    // Freeze the fallback before takePhoto: still capture can interrupt or mute
+    // the live track, making a video draw performed afterwards black.
+    const canvas = document.createElement('canvas');
+    canvas.width = width;
+    canvas.height = height;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) throw new Error('Image capture is unavailable.');
+    ctx.drawImage(video, 0, 0, width, height);
+    const fallbackData = canvas.toDataURL('image/jpeg', 1);
+    const fallbackHasPixels = hasCameraPixels(canvas);
+    const track = stream.value.getVideoTracks()[0];
+    const caps = photoCapabilities.value;
+    const target = profile.capture ?? (caps ? { width: caps.imageWidth.max, height: caps.imageHeight.max } : { width, height });
+    const ensureCurrent = () => {
+      if (token !== generation) throw new Error('The camera changed during capture. Please try again.');
+    };
     if (imageCapture && photoCapabilities.value) {
       try {
         const caps = photoCapabilities.value;
         const blob = await imageCapture.takePhoto({ imageWidth: profile.capture?.width ?? caps.imageWidth.max, imageHeight: profile.capture?.height ?? caps.imageHeight.max });
-        bitmap = await createImageBitmap(blob);
-        if (Math.abs(bitmap.width / bitmap.height - width / height) > 0.000001) throw new Error('Still aspect ratio differs from preview.');
-        source = bitmap;
-        width = bitmap.width;
-        height = bitmap.height;
-      } catch { bitmap?.close(); bitmap = null; fallback = true; }
+        ensureCurrent();
+        if (!blob.size) throw new Error('The camera returned an empty photo.');
+        const data = await new Promise<string>((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onload = () => resolve(reader.result as string);
+          reader.onerror = () => reject(new Error('Could not read the captured photo.'));
+          reader.readAsDataURL(blob);
+        });
+        const image = new Image();
+        image.src = data;
+        await image.decode();
+        ensureCurrent();
+        if (!image.naturalWidth || !image.naturalHeight) throw new Error('The camera returned an invalid photo.');
+        if (!hasCameraPixels(image)) throw new Error('The camera returned a blank still photo.');
+        // Preserve a native JPEG directly. Avoid routing still photos through
+        // ImageBitmap/canvas, which can lose the camera's decoded pixels.
+        let photoData = data;
+        if (blob.type !== 'image/jpeg') {
+          canvas.width = image.naturalWidth;
+          canvas.height = image.naturalHeight;
+          ctx.drawImage(image, 0, 0);
+          photoData = canvas.toDataURL('image/jpeg', 1);
+        }
+        return { data: photoData, fallback: false, crop: mapCaptureCrop(crop, width / height, image.naturalWidth / image.naturalHeight), width: image.naturalWidth, height: image.naturalHeight };
+      } catch {
+        ensureCurrent();
+        // Some cameras advertise still capture but return a valid, black JPEG.
+        // Recover using fresh video frames, requesting the capture resolution.
+      }
+    } else if (!profile.capture && fallbackHasPixels) {
+      ensureCurrent();
+      return { data: fallbackData, fallback: false, crop, width, height };
     }
+    const originalConstraints = track.getConstraints();
+    let changed = false;
     try {
-      if (token !== generation || video.readyState < 2) throw new Error('The camera changed during capture. Please try again.');
-      const canvas = document.createElement('canvas');
-      canvas.width = width;
-      canvas.height = height;
-      const ctx = canvas.getContext('2d');
-      if (!ctx) throw new Error('Image capture is unavailable.');
-      ctx.drawImage(source, 0, 0, width, height);
-      return { data: canvas.toDataURL('image/jpeg', 1), fallback };
-    } finally { bitmap?.close(); }
+      if (target.width !== width || target.height !== height) {
+        changed = true;
+        await track.applyConstraints({ ...originalConstraints, width: { ideal: target.width }, height: { ideal: target.height } });
+        ensureCurrent();
+      }
+      // Skip the first frame after reconfiguration/still capture, which can be blank.
+      await waitForCameraFrame(video, track);
+      for (let attempt = 0; attempt < 3; attempt++) {
+        await waitForCameraFrame(video, track);
+        ensureCurrent();
+        canvas.width = video.videoWidth;
+        canvas.height = video.videoHeight;
+        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+        if (!hasCameraPixels(canvas)) continue;
+        return {
+          data: canvas.toDataURL('image/jpeg', 1),
+          fallback: canvas.width < target.width || canvas.height < target.height,
+          crop: mapCaptureCrop(crop, width / height, canvas.width / canvas.height),
+          width: canvas.width, height: canvas.height,
+        };
+      }
+      throw new Error('The camera returned blank frames. Wait for the preview to recover and try again.');
+    } catch (e) {
+      ensureCurrent();
+      if (!fallbackHasPixels) throw e;
+      return { data: fallbackData, fallback: true, crop, width, height };
+    } finally {
+      if (changed && token === generation && stream.value) {
+        try {
+          await track.applyConstraints({ ...originalConstraints, width: originalConstraints.width ?? { ideal: width }, height: originalConstraints.height ?? { ideal: height } });
+        } catch {
+          if (token === generation) notice.value = 'Photo captured, but the preview resolution could not be restored. Reopen the camera to restore it.';
+        }
+      }
+    }
   }
   return { stream, devices, actual, capabilities, photoCapabilities, error, notice, busy, refreshDevices, start, stop, capture };
 }
