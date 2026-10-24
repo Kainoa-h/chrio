@@ -41,6 +41,24 @@ A local-first, application for chiropractic and physical therapy image compariso
 
 * **Icons:** [Lucide](https://lucide.dev/)
 
+## macOS installation
+
+Download the `aarch64` release for Apple Silicon or `x86_64` for Intel, extract
+the app archive, and move `chrio.app` to Applications.
+
+Releases use ad-hoc code signing and are not notarized by Apple. On first launch,
+macOS may block the app; open **System Settings > Privacy & Security** and choose
+**Open Anyway** after attempting to launch it.
+
+If an older release reports that the app is damaged, and you trust the download,
+remove its download quarantine attribute and try opening it again:
+
+```bash
+xattr -dr com.apple.quarantine /Applications/chrio.app
+```
+
+This applies only to Chrio; it does not disable Gatekeeper globally.
+
 ## Development Setup
 
 Ensure you have `Rust`, `Bun` (or Node.js), and typical build tools installed.

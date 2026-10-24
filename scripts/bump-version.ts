@@ -1,6 +1,5 @@
 import { readFileSync, writeFileSync } from 'fs';
 import { join } from 'path';
-import { execSync } from 'child_process';
 
 // Get the new version from command line arguments
 const newVersion = process.argv[2];
@@ -20,6 +19,7 @@ const paths = {
   packageJson: join(process.cwd(), 'package.json'),
   tauriConf: join(process.cwd(), 'src-tauri', 'tauri.conf.json'),
   cargoToml: join(process.cwd(), 'src-tauri', 'Cargo.toml'),
+  cargoLock: join(process.cwd(), 'src-tauri', 'Cargo.lock'),
 };
 
 // Update package.json
@@ -30,6 +30,7 @@ try {
   console.log(`Updated package.json to ${newVersion}`);
 } catch (error) {
   console.error('Error updating package.json:', error);
+  process.exitCode = 1;
 }
 
 // Update tauri.conf.json
@@ -40,12 +41,11 @@ try {
   console.log(`Updated src-tauri/tauri.conf.json to ${newVersion}`);
 } catch (error) {
   console.error('Error updating tauri.conf.json:', error);
+  process.exitCode = 1;
 }
 
-// Update Cargo.toml using cargo command if available, or regex fallback
+// Update Cargo.toml while preserving comments and structure
 try {
-    // Try using cargo-edit if installed (more robust), otherwise manual replace
-    // Using regex replacement for Cargo.toml to preserve comments and structure
     let cargoToml = readFileSync(paths.cargoToml, 'utf-8');
     // Replace version = "x.y.z" in the [package] section
     // We look for the first occurrence which is typically the package version
@@ -54,6 +54,23 @@ try {
     console.log(`Updated src-tauri/Cargo.toml to ${newVersion}`);
 } catch (error) {
   console.error('Error updating Cargo.toml:', error);
+  process.exitCode = 1;
 }
 
-console.log(`\nSuccessfully bumped version to ${newVersion}`);
+// Update only the local app package, leaving dependency versions untouched.
+try {
+  const cargoLock = readFileSync(paths.cargoLock, 'utf-8');
+  const appVersion = /^(\[\[package\]\]\r?\nname = "chrio"\r?\nversion = ")[^"]+("\r?$)/m;
+  if (!appVersion.test(cargoLock)) {
+    throw new Error('Could not find the chrio package version in Cargo.lock');
+  }
+  writeFileSync(paths.cargoLock, cargoLock.replace(appVersion, (_match, prefix, suffix) => `${prefix}${newVersion}${suffix}`));
+  console.log(`Updated src-tauri/Cargo.lock to ${newVersion}`);
+} catch (error) {
+  console.error('Error updating Cargo.lock:', error);
+  process.exitCode = 1;
+}
+
+if (!process.exitCode) {
+  console.log(`\nSuccessfully bumped version to ${newVersion}`);
+}

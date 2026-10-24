@@ -61,3 +61,26 @@ jobs:
           releaseDraft: true
           prerelease: false
           args: ${{ matrix.args }}
+
+      - name: Verify macOS app signatures
+        if: runner.os == 'macOS'
+        shell: bash
+        run: |
+          set -euo pipefail
+          found=false
+          while IFS= read -r -d '' app; do
+            found=true
+            codesign --verify --deep --strict --verbose=2 "$app"
+            entitlements=$(mktemp)
+            codesign --display --entitlements - --xml "$app" > "$entitlements"
+            camera=$(/usr/libexec/PlistBuddy -c 'Print :com.apple.security.device.camera' "$entitlements")
+            if [ "$camera" != true ]; then
+              echo "Camera entitlement missing from $app" >&2
+              exit 1
+            fi
+            /usr/libexec/PlistBuddy -c 'Print :NSCameraUsageDescription' "$app/Contents/Info.plist"
+          done < <(find src-tauri/target -type d -path '*/release/bundle/macos/*.app' -print0)
+          if [ "$found" = false ]; then
+            echo 'No macOS app bundle found to verify.' >&2
+            exit 1
+          fi
