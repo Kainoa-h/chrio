@@ -21,6 +21,7 @@ const savingPhoto = ref(false);
 const ready = ref(false);
 const message = ref('');
 const pendingPhoto = ref<{ data: string; crop: Crop } | null>(null);
+const canCapture = computed(() => ready.value && !!stream.value && !busy.value && !savingPhoto.value && !error.value && !editing.value && !pendingPhoto.value);
 let operation = 0;
 let previousFocus: HTMLElement | null = null;
 function clone<T>(value: T): T { return JSON.parse(JSON.stringify(value)); }
@@ -101,7 +102,7 @@ async function finishSettings(save: boolean) {
   await start();
 }
 async function takePhoto() {
-  if (!videoRef.value || !ready.value || busy.value || savingPhoto.value) return;
+  if (!videoRef.value || !canCapture.value) return;
   savingPhoto.value = true;
   const token = operation;
   const frame = { ...crop.value };
@@ -142,6 +143,16 @@ async function devicesChanged() {
   } catch { message.value = 'Could not refresh camera devices.'; }
 }
 function keyboard(event: KeyboardEvent) {
+  if (event.key === ' ' && props.show && !editing.value && !pendingPhoto.value && !event.altKey && !event.ctrlKey && !event.metaKey && !event.shiftKey) {
+    const target = event.target as HTMLElement;
+    const control = target.closest('button, input, select, textarea, [contenteditable]:not([contenteditable="false"])');
+    // Preserve normal keyboard operation for other controls in the dialog.
+    if (!control || control.hasAttribute('data-camera-shutter')) {
+      event.preventDefault();
+      if (!event.repeat && canCapture.value) void takePhoto();
+      return;
+    }
+  }
   if (event.key === 'Escape') { event.preventDefault(); if (editing.value) void finishSettings(false); else emit('close'); }
   if (event.key === 'Tab') {
     const nodes = dialogRef.value?.querySelectorAll<HTMLElement>('button:not([disabled]), select:not([disabled]), [tabindex="0"]');
@@ -241,7 +252,7 @@ onBeforeUnmount(() => { operation++; camera.stop(); navigator.mediaDevices?.remo
         </template>
         <template v-else>
           <button class="p-3 rounded hover:bg-gray-100" title="Import image" aria-label="Import image" :disabled="savingPhoto" @click="fileInput?.click()"><ImageIcon class="w-6 h-6" /></button>
-          <button class="px-5 py-3 rounded bg-blue-600 text-white flex gap-2 disabled:opacity-50" :disabled="!ready || !stream || busy || savingPhoto || !!error" @click="takePhoto"><Camera class="w-6 h-6" />{{ savingPhoto ? 'Capturing…' : 'Take photo' }}</button>
+          <button data-camera-shutter title="Take photo (Space)" aria-keyshortcuts="Space" class="px-5 py-3 rounded bg-blue-600 text-white flex gap-2 disabled:opacity-50" :disabled="!canCapture" @click="takePhoto"><Camera class="w-6 h-6" />{{ savingPhoto ? 'Capturing…' : 'Take photo' }}</button>
         </template>
       </footer>
       <input ref="fileInput" type="file" accept="image/*" class="hidden" @change="importFile">
