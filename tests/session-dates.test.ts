@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test';
-import { matchesSessionDate, sessionDateParts, type SessionDateFilter } from '../src/lib/sessionDates';
+import { groupSessionsByDate, matchesSessionDate, sessionDateParts, type SessionDateFilter } from '../src/lib/sessionDates';
 
 const all: SessionDateFilter = { year: null, month: null, day: null };
 const dates = ['2024-02-29T12:00:00', '2025-02-28T12:00:00', '2025-03-28T12:00:00', '2026-02-28T12:00:00'];
@@ -39,4 +39,19 @@ describe('session date filters', () => {
     expect(matchesSessionDate('invalid', all)).toBe(true);
     expect(matchesSessionDate('invalid', { ...all, month: 2 })).toBe(false);
   });
+});
+
+
+test('groups sessions by local calendar day without losing sessions on the same day', () => {
+  const sessions = [
+    { id: 1, datetime: '2024-02-29T09:00:00' },
+    { id: 2, datetime: '2024-02-29T16:00:00' },
+    { id: 3, datetime: '2025-01-01T10:00:00' },
+    { id: 4, datetime: 'invalid' },
+  ];
+  const grouped = groupSessionsByDate(sessions);
+  expect([...grouped.keys()]).toEqual(['2024-02-29', '2025-01-01']);
+  expect(grouped.get('2024-02-29')).toEqual(sessions.slice(0, 2));
+  expect(grouped.get('2025-01-01')).toEqual([sessions[2]]);
+  expect(groupSessionsByDate([]).size).toBe(0);
 });

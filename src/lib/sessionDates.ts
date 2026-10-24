@@ -15,3 +15,16 @@ export function matchesSessionDate(datetime: string, filter: SessionDateFilter):
     (filter.month === null || parts.month === filter.month) &&
     (filter.day === null || parts.day === filter.day);
 }
+
+export function groupSessionsByDate<T extends { datetime: string }>(sessions: T[]): Map<string, T[]> {
+  const days = new Map<string, T[]>();
+  for (const session of sessions) {
+    const parts = sessionDateParts(session.datetime);
+    if (!parts) continue;
+    const key = `${parts.year}-${String(parts.month).padStart(2, '0')}-${String(parts.day).padStart(2, '0')}`;
+    const matches = days.get(key) ?? [];
+    matches.push(session);
+    days.set(key, matches);
+  }
+  return days;
+}

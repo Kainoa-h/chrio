@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import AppSelect from "@/components/ui/select/AppSelect.vue";
+import SessionCalendarPicker from "@/components/SessionCalendarPicker.vue";
 import { computed } from "vue";
 import { type Session } from "@/bindings";
 import { ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, Crop, X } from "lucide-vue-next";
@@ -163,10 +164,13 @@ const imageTypes = [
         </div>
         
         <!-- Dropdown for quick jump -->
+        <div class="flex items-center gap-2">
+        <SessionCalendarPicker :session="session" :sessions="availableCandidates" @select="changeSession" />
         <AppSelect :model-value="session.id" class="w-full" size="sm" aria-label="Session to compare"
           :options="availableCandidates.map(s => ({ value: s.id, label: `#${s.session_number} (${formatDate(s.datetime)})` }))"
           @update:model-value="id => { const candidate = availableCandidates.find(s => s.id === id); if (candidate) changeSession(candidate); }"
         />
+        </div>
     </div>
 
     <!-- Content (Scrollable relative to column usually, but here the whole page scrolls vertically?) -->

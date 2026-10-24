@@ -12,6 +12,7 @@
     "bump-version": "bun scripts/bump-version.ts"
   },
   "dependencies": {
+    "@internationalized/date": "^3.12.4",
     "@tanstack/vue-table": "^8.21.3",
     "@tauri-apps/api": "2.10.1",
     "@tauri-apps/plugin-opener": "^2",
