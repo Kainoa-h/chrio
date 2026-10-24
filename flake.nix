@@ -2,7 +2,7 @@
   description = "chrio - Tauri physio photo manager";
 
   inputs = {
-    nixpkgs.url = "github:NixOS/nixpkgs/nixos-24.11";
+    nixpkgs.url = "github:NixOS/nixpkgs/nixpkgs-unstable";
     flake-utils.url = "github:numtide/flake-utils";
     fenix.url = "github:nix-community/fenix";
   };
@@ -23,7 +23,7 @@
         devShells.default = pkgs.mkShell {
           packages = [
             pkgs.bun
-            pkgs.nodejs_20
+            pkgs.nodejs_latest
             fenix.packages.${system}.stable.toolchain
             pkgs.clang
             pkgs.sqlite
@@ -31,7 +31,7 @@
             pkgs.libwebp
             pkgs.openssl
             pkgs.zlib
-          ] ++ pkgs.lib.optionals pkgs.stdenv.isDarwin [
+          ] ++ pkgs.lib.optionals pkgs.stdenv.hostPlatform.isDarwin [
             # Tauri's DMG script needs Apple's SetFile. The /usr/bin shim
             # otherwise picks up Nix's xcrun and SDK, which lack this tool.
             (pkgs.writeShellScriptBin "SetFile" ''
