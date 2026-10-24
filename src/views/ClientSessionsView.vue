@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import AppSelect from "@/components/ui/select/AppSelect.vue";
 import { ref, onMounted, computed, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { commands, type Session, type Client } from "@/bindings";
@@ -247,22 +248,13 @@ onMounted(async () => {
     <div v-else class="space-y-4">
       <div class="flex flex-wrap items-end gap-3">
         <label class="text-sm font-medium text-gray-700">Year
-          <select v-model="dateFilter.year" class="block mt-1 rounded-md border border-gray-300 bg-white px-3 py-2 text-sm">
-            <option :value="null">All years</option>
-            <option v-for="year in availableYears" :key="year" :value="year">{{ year }}</option>
-          </select>
+          <AppSelect v-model="dateFilter.year" class="mt-1 flex min-w-32" :options="[{ value: null, label: 'All years' }, ...availableYears.map(year => ({ value: year, label: String(year) }))]" />
         </label>
         <label class="text-sm font-medium text-gray-700">Month
-          <select v-model="dateFilter.month" class="block mt-1 rounded-md border border-gray-300 bg-white px-3 py-2 text-sm">
-            <option :value="null">All months</option>
-            <option v-for="month in months" :key="month.value" :value="month.value">{{ month.label }}</option>
-          </select>
+          <AppSelect v-model="dateFilter.month" class="mt-1 flex min-w-40" :options="[{ value: null, label: 'All months' }, ...months]" />
         </label>
         <label class="text-sm font-medium text-gray-700">Day
-          <select v-model="dateFilter.day" class="block mt-1 rounded-md border border-gray-300 bg-white px-3 py-2 text-sm">
-            <option :value="null">All days</option>
-            <option v-for="day in 31" :key="day" :value="day">{{ day }}</option>
-          </select>
+          <AppSelect v-model="dateFilter.day" class="mt-1 flex min-w-28" :options="[{ value: null, label: 'All days' }, ...Array.from({ length: 31 }, (_, index) => ({ value: index + 1, label: String(index + 1) }))]" />
         </label>
         <button v-if="hasDateFilter" class="px-3 py-2 text-sm text-blue-600 hover:underline" @click="dateFilter = { year: null, month: null, day: null }">Clear filters</button>
         <p class="py-2 text-sm text-gray-500" aria-live="polite">{{ filteredSessions.length }} of {{ sessions.length }} sessions</p>
@@ -319,17 +311,12 @@ onMounted(async () => {
         </div>
         
         <div class="flex items-center gap-2">
-          <select
-            :value="table.getState().pagination.pageSize"
-            @change="(e) => table.setPageSize(Number((e.target as HTMLSelectElement).value))"
-            class="h-8 w-[70px] rounded-md border border-gray-300 bg-white text-gray-700 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-          >
-            <option :value="10">10</option>
-            <option :value="20">20</option>
-            <option :value="30">30</option>
-            <option :value="40">40</option>
-            <option :value="50">50</option>
-          </select>
+          <AppSelect
+            :model-value="table.getState().pagination.pageSize"
+            :options="[10, 20, 30, 40, 50].map(value => ({ value, label: String(value) }))"
+            size="sm" class="w-20" aria-label="Sessions per page"
+            @update:model-value="table.setPageSize($event)"
+          />
 
           <div class="flex items-center space-x-2">
             <button

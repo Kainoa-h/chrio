@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import AppSelect from "@/components/ui/select/AppSelect.vue";
 import { computed } from "vue";
 import { type Session } from "@/bindings";
 import { ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, Crop, X } from "lucide-vue-next";
@@ -162,19 +163,10 @@ const imageTypes = [
         </div>
         
         <!-- Dropdown for quick jump -->
-        <select 
-            :value="session.id"
-            @change="e => changeSession(availableCandidates.find(s => s.id === Number((e.target as HTMLSelectElement).value))!)"
-            class="w-full text-xs bg-white border border-gray-300 text-gray-700 rounded px-2 py-1 focus:ring-1 focus:ring-blue-500 outline-none"
-        >
-            <option 
-            v-for="s in availableCandidates" 
-            :key="s.id" 
-            :value="s.id"
-            >
-            #{{ s.session_number }} ({{ formatDate(s.datetime) }})
-            </option>
-        </select>
+        <AppSelect :model-value="session.id" class="w-full" size="sm" aria-label="Session to compare"
+          :options="availableCandidates.map(s => ({ value: s.id, label: `#${s.session_number} (${formatDate(s.datetime)})` }))"
+          @update:model-value="id => { const candidate = availableCandidates.find(s => s.id === id); if (candidate) changeSession(candidate); }"
+        />
     </div>
 
     <!-- Content (Scrollable relative to column usually, but here the whole page scrolls vertically?) -->

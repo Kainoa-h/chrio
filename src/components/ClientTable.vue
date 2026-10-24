@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import AppSelect from "@/components/ui/select/AppSelect.vue";
 import {
   useVueTable,
   FlexRender,
@@ -196,17 +197,12 @@ const table = useVueTable({
       </div>
       
       <div class="flex items-center gap-2">
-        <select
-          :value="table.getState().pagination.pageSize"
-          @change="(e) => table.setPageSize(Number((e.target as HTMLSelectElement).value))"
-          class="h-8 w-[70px] rounded-md border border-gray-300 bg-white text-gray-700 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-        >
-          <option :value="10">10</option>
-          <option :value="20">20</option>
-          <option :value="30">30</option>
-          <option :value="40">40</option>
-          <option :value="50">50</option>
-        </select>
+        <AppSelect
+            :model-value="table.getState().pagination.pageSize"
+            :options="[10, 20, 30, 40, 50].map(value => ({ value, label: String(value) }))"
+            size="sm" class="w-20" aria-label="Clients per page"
+            @update:model-value="table.setPageSize($event)"
+          />
 
         <div class="flex items-center space-x-2">
           <button

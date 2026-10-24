@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import AppSelect from "@/components/ui/select/AppSelect.vue";
 import { computed, nextTick, onBeforeUnmount, ref, watch } from 'vue';
 import { Camera, X, Image as ImageIcon, Settings } from 'lucide-vue-next';
 import CameraFrame from './CameraFrame.vue';
@@ -47,6 +48,15 @@ const captureChoices = computed(() => {
     fitted.findIndex(other => other.width === r.width && other.height === r.height) === index);
 });
 const resolutionKey = (r: Resolution | null) => r ? `${r.width}x${r.height}` : '';
+const resolutionOptions = (choices: Resolution[], requested: Resolution | null, autoLabel: string) => [
+  { value: '', label: autoLabel },
+  ...(requested && !choices.some(r => resolutionKey(r) === resolutionKey(requested))
+    ? [{ value: resolutionKey(requested), label: `${requested.width} × ${requested.height} (requested)` }] : []),
+  ...choices.map(r => ({ value: resolutionKey(r), label: `${r.width} × ${r.height}` })),
+];
+const streamOptions = computed(() => resolutionOptions(streamChoices.value, profile.value.stream, 'Auto'));
+const captureOptions = computed(() => resolutionOptions(captureChoices.value, profile.value.capture,
+  canConfigureCapture.value ? 'Highest available' : 'Same as streaming resolution'));
 function parseResolution(value: string): Resolution | null {
   if (!value) return null;
   const [width, height] = value.split('x').map(Number);
@@ -78,13 +88,13 @@ function loaded() {
     ready.value = video.readyState >= 2;
   }
 }
-function chooseCamera(event: Event) {
-  draft.value.deviceId = (event.target as HTMLSelectElement).value;
+function chooseCamera(deviceId: string) {
+  draft.value.deviceId = deviceId;
   activeDevice.value = draft.value.deviceId;
   void start();
 }
-function chooseStream(event: Event) {
-  updateProfile({ stream: parseResolution((event.target as HTMLSelectElement).value) });
+function chooseStream(value: string) {
+  updateProfile({ stream: parseResolution(value) });
   void start(activeDevice.value);
 }
 async function finishSettings(save: boolean) {
@@ -200,25 +210,21 @@ onBeforeUnmount(() => { operation++; camera.stop(); navigator.mediaDevices?.remo
         </label>
         <p class="text-xs text-gray-600">Mirror all photo and live camera previews. Captured files stay unchanged.</p>
         <label class="block text-sm font-medium">Camera
-          <select :value="activeDevice" class="block w-full mt-1 border rounded p-2" :disabled="busy" @change="chooseCamera">
-            <option v-if="!devices.length" value="">Default camera</option>
-            <option v-for="(device, index) in devices" :key="device.deviceId" :value="device.deviceId">{{ device.label || `Camera ${index + 1}` }}</option>
-          </select>
+          <AppSelect :model-value="activeDevice" class="mt-1 w-full" :disabled="busy"
+            :options="devices.length ? devices.map((device, index) => ({ value: device.deviceId, label: device.label || `Camera ${index + 1}` })) : [{ value: '', label: 'Default camera' }]"
+            @update:model-value="chooseCamera"
+          />
         </label>
         <div class="grid sm:grid-cols-2 gap-3">
           <label class="block text-sm font-medium">Streaming resolution
-            <select :value="resolutionKey(profile.stream)" :disabled="busy || !stream" class="block w-full mt-1 border rounded p-2" @change="chooseStream">
-              <option value="">Auto</option>
-              <option v-if="profile.stream && !streamChoices.some(r => resolutionKey(r) === resolutionKey(profile.stream))" :value="resolutionKey(profile.stream)">{{ profile.stream.width }} × {{ profile.stream.height }} (requested)</option>
-              <option v-for="r in streamChoices" :key="resolutionKey(r)" :value="resolutionKey(r)">{{ r.width }} × {{ r.height }}</option>
-            </select>
+            <AppSelect :model-value="resolutionKey(profile.stream)" :disabled="busy || !stream" class="mt-1 w-full"
+              :options="streamOptions" @update:model-value="chooseStream"
+            />
           </label>
           <label class="block text-sm font-medium">Capture resolution
-            <select :value="resolutionKey(profile.capture)" :disabled="busy || !canConfigureCapture" class="block w-full mt-1 border rounded p-2" @change="updateProfile({ capture: parseResolution(($event.target as HTMLSelectElement).value) })">
-              <option value="">{{ canConfigureCapture ? 'Highest available' : 'Same as streaming resolution' }}</option>
-              <option v-if="profile.capture && !captureChoices.some(r => resolutionKey(r) === resolutionKey(profile.capture))" :value="resolutionKey(profile.capture)">{{ profile.capture.width }} × {{ profile.capture.height }} (requested)</option>
-              <option v-for="r in captureChoices" :key="resolutionKey(r)" :value="resolutionKey(r)">{{ r.width }} × {{ r.height }}</option>
-            </select>
+            <AppSelect :model-value="resolutionKey(profile.capture)" :disabled="busy || !canConfigureCapture" class="mt-1 w-full"
+              :options="captureOptions" @update:model-value="updateProfile({ capture: parseResolution($event) })"
+            />
           </label>
         </div>
         <p v-if="!canConfigureCapture" class="text-xs text-gray-600">Capture resolution cannot be changed on this camera. Photos use the streaming resolution.</p>
