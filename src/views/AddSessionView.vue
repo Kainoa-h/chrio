@@ -9,6 +9,7 @@ import RatioImage from "@/components/RatioImage.vue";
 import ImageCropper from "@/components/ImageCropper.vue";
 import ConfirmDialog from "@/components/ConfirmDialog.vue";
 import { useToast } from "@/composables/useToast";
+import { registerTransferSave } from "@/lib/dataTransfer";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 
 const route = useRoute();
@@ -211,14 +212,14 @@ function discardPhoto(type: string) {
 }
 
 // Core save routine used by both manual save and autosave
-let pendingSave: { resolve: (ok: boolean) => void } | null = null;
+let pendingSaves: { resolve: (ok: boolean) => void }[] = [];
 
 async function performSave(): Promise<boolean> {
   if (!client.value) return false;
 
   if (saving.value) {
     return new Promise<boolean>((resolve) => {
-      pendingSave = { resolve };
+      pendingSaves.push({ resolve });
     });
   }
 
@@ -283,10 +284,10 @@ async function performSave(): Promise<boolean> {
     return false;
   } finally {
     saving.value = false;
-    if (pendingSave) {
-      const p = pendingSave;
-      pendingSave = null;
-      performSave().then(p.resolve);
+    if (pendingSaves.length) {
+      const waiting = pendingSaves;
+      pendingSaves = [];
+      performSave().then(ok => waiting.forEach(p => p.resolve(ok)));
     }
   }
 }
@@ -389,12 +390,23 @@ function cancelClose() {
   showCloseConfirm.value = false;
 }
 
+const unregisterTransferSave = registerTransferSave(async () => {
+  if (autosaveTimer) {
+    clearTimeout(autosaveTimer);
+    autosaveTimer = null;
+  }
+  if ((saving.value || isDirty.value) && !await performSave()) {
+    throw new Error(error.value || 'Could not save the current session. Close Import / Export and try saving again.');
+  }
+});
+
 onMounted(() => {
   fetchClientAndSessionInfo();
   installCloseGuard();
 });
 
 onBeforeUnmount(() => {
+  unregisterTransferSave();
   if (unlistenClose) {
     unlistenClose();
     unlistenClose = null;

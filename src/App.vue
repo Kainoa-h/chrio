@@ -1,11 +1,19 @@
 <script setup lang="ts">
-import { ref } from "vue";
-import { Info, Settings } from "lucide-vue-next";
+import { onMounted, ref } from "vue";
+import { Info, Settings, Archive } from "lucide-vue-next";
 import CameraModal from "@/components/CameraModal.vue";
 import AboutModal from "@/components/AboutModal.vue";
+import DataTransferModal from "@/components/DataTransferModal.vue";
+import { dataTransferActive } from "@/lib/dataTransfer";
+import { commands } from "@/bindings";
 import Toast from "@/components/Toast.vue";
 import { useToast } from "@/composables/useToast";
 
+const showTransfer = ref(false);
+const startupMessage = ref<string | null>(null);
+onMounted(async () => {
+  try { startupMessage.value = await commands.backupStartupMessage(); } catch { /* No recovery message available. */ }
+});
 const showAbout = ref(false);
 const showSettings = ref(false);
 const showBetaWarning = ref(true);
@@ -15,9 +23,12 @@ const { show, message, type, closeToast } = useToast();
 <template>
   <Toast :show="show" :message="message" :type="type" @close="closeToast" />
 
-  <div class="absolute top-4 right-4 z-40 flex gap-2">
+  <div :inert="dataTransferActive" class="relative z-40 flex justify-end gap-2 px-4 pt-4">
     <button @click="showSettings = true" class="p-2 text-gray-500 hover:text-blue-600 bg-white/80 rounded-full shadow-sm" title="Settings" aria-label="Settings">
       <Settings class="w-6 h-6" />
+    </button>
+    <button @click="showTransfer = true" class="p-2 text-gray-500 hover:text-blue-600 bg-white/80 rounded-full shadow-sm" title="Import / Export" aria-label="Import / Export">
+      <Archive class="w-6 h-6" />
     </button>
     <button 
       @click="showAbout = true"
@@ -28,10 +39,17 @@ const { show, message, type, closeToast } = useToast();
     </button>
   </div>
 
-  <router-view />
+  <div :inert="dataTransferActive">
+    <div v-if="startupMessage" role="status" class="mx-auto mt-4 max-w-3xl rounded-lg border border-blue-200 bg-blue-50 p-4 text-sm text-gray-800">
+      {{ startupMessage }}
+      <button class="ml-3 underline" @click="startupMessage = null">Dismiss</button>
+    </div>
+    <router-view />
   
-  <AboutModal v-if="showAbout" @close="showAbout = false" />
-  <CameraModal :show="showSettings" settings-only @close="showSettings = false" />
+    <AboutModal v-if="showAbout" @close="showAbout = false" />
+    <CameraModal :show="showSettings" settings-only @close="showSettings = false" />
+  </div>
+  <DataTransferModal v-if="showTransfer" @close="showTransfer = false" />
 
   <button
     v-if="showBetaWarning"
