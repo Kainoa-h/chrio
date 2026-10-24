@@ -89,7 +89,7 @@ function chooseStream(event: Event) {
 async function finishSettings(save: boolean) {
   if (save) {
     try {
-      updateProfile({ crop: crop.value });
+      if (ready.value && stream.value) updateProfile({ crop: crop.value });
       if (!draft.value.deviceId) draft.value.deviceId = activeDevice.value;
       store.save(draft.value);
     } catch { message.value = 'Could not save preferences on this device. Please try again.'; return; }
@@ -184,6 +184,10 @@ onBeforeUnmount(() => { operation++; camera.stop(); navigator.mediaDevices?.remo
         </div>
       </header>
       <div v-if="editing" class="p-4 space-y-3">
+        <label class="flex items-center gap-2 text-sm font-medium">
+          <input v-model="draft.mirrorPreviews" type="checkbox" /> Mirror image previews
+        </label>
+        <p class="text-xs text-gray-600">Mirror all photo and live camera previews. Captured files stay unchanged.</p>
         <label class="block text-sm font-medium">Camera
           <select :value="activeDevice" class="block w-full mt-1 border rounded p-2" :disabled="busy" @change="chooseCamera">
             <option v-if="!devices.length" value="">Default camera</option>
@@ -214,9 +218,9 @@ onBeforeUnmount(() => { operation++; camera.stop(); navigator.mediaDevices?.remo
       <div class="bg-black flex items-start justify-center overflow-hidden">
         <!-- The wrapper defines the source bounds. Keep the video out of layout so
              its intrinsic height cannot stretch the crop coordinate system. -->
-        <div class="relative flex-none overflow-hidden" :style="{ width: `min(100%, ${(editing ? 42 : 65) * aspect}vh)`, aspectRatio: String(aspect) }">
+        <div class="relative flex-none overflow-hidden" :style="{ width: `min(100%, ${(editing ? 42 : 65) * aspect}vh)`, aspectRatio: String(aspect), transform: draft.mirrorPreviews ? 'scaleX(-1)' : undefined }">
           <video ref="videoRef" autoplay playsinline muted class="absolute inset-0 block w-full h-full object-fill" @loadedmetadata="loaded" @loadeddata="loaded" @playing="loaded"></video>
-          <CameraFrame v-if="ready && stream" :crop="crop" :aspect="aspect" :editable="editing && !busy" @update="updateProfile({ crop: $event })" />
+          <CameraFrame v-if="ready && stream" :crop="crop" :aspect="aspect" :mirrored="draft.mirrorPreviews" :editable="editing && !busy" @update="updateProfile({ crop: $event })" />
         </div>
       </div>
       <div class="px-4 py-2 text-sm space-y-1" aria-live="polite">
@@ -229,7 +233,7 @@ onBeforeUnmount(() => { operation++; camera.stop(); navigator.mediaDevices?.remo
       <footer class="p-4 border-t flex items-center justify-end gap-3">
         <template v-if="editing">
           <button class="px-4 py-2 border rounded" @click="finishSettings(false)">Cancel</button>
-          <button class="px-4 py-2 bg-blue-600 text-white rounded disabled:opacity-50" :disabled="busy || !ready || !stream" @click="finishSettings(true)">Save settings</button>
+          <button class="px-4 py-2 bg-blue-600 text-white rounded disabled:opacity-50" :disabled="busy" @click="finishSettings(true)">Save settings</button>
         </template>
         <template v-else-if="pendingPhoto">
           <button class="px-4 py-2 border rounded" @click="pendingPhoto = null; message = ''">Retake</button>

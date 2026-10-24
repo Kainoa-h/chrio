@@ -62,7 +62,7 @@ This applies only to Chrio; it does not disable Gatekeeper globally.
 
 ## Development Setup
 
-Open **Settings** beside About, or the settings button inside the camera dialog, to configure a camera. Drag the frame or its corner to adjust it, then choose **Save settings**. Arrow keys move the frame; Alt + arrows resize it, and Shift makes larger adjustments. Imported images continue to use the per-photo crop editor.
+Open **Settings** beside About, or the settings button inside the camera dialog, to configure a camera. Drag the frame or its corner to adjust it, then choose **Save settings**. Arrow keys move the frame; Alt + arrows resize it, and Shift makes larger adjustments. Imported images continue to use the per-photo crop editor. Enable **Mirror image previews** to mirror live video, saved and imported photos, comparisons, and the framing editor. This device-wide preference is off by default and changes only the display; captures and saved originals stay unchanged.
 
 Ensure you have `Rust`, `Bun` (or Node.js), and typical build tools installed.
 

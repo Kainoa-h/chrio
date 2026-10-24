@@ -1,14 +1,14 @@
 export type Crop = { x: number; y: number; width: number };
 export type Resolution = { width: number; height: number };
 export type CameraProfile = { stream: Resolution | null; capture: Resolution | null; crop: Crop | null };
-export type CameraPreferences = { version: 1; deviceId: string; profiles: Record<string, CameraProfile> };
+export type CameraPreferences = { version: 1; mirrorPreviews: boolean; deviceId: string; profiles: Record<string, CameraProfile> };
 export const settingsKey = 'chrio.camera.v1';
 export const resolutions: Resolution[] = [
   { width: 640, height: 480 }, { width: 1280, height: 720 },
   { width: 1920, height: 1080 }, { width: 2560, height: 1440 }, { width: 3840, height: 2160 },
 ];
 export const defaultProfile = (): CameraProfile => ({ stream: { width: 1920, height: 1080 }, capture: null, crop: null });
-export const emptyPreferences = (): CameraPreferences => ({ version: 1, deviceId: '', profiles: {} });
+export const emptyPreferences = (): CameraPreferences => ({ version: 1, mirrorPreviews: false, deviceId: '', profiles: {} });
 export function fitCaptureResolution(bounds: Resolution, aspect: number): Resolution {
   const width = Math.min(bounds.width, bounds.height * aspect);
   return { width: Math.max(1, Math.floor(width)), height: Math.max(1, Math.floor(width / aspect)) };
@@ -36,6 +36,11 @@ export function parsePreferences(raw: string | null): CameraPreferences {
       if (c !== null && (!c || ![c.x, c.y, c.width].every(Number.isFinite) || c.x < 0 || c.y < 0 || c.width <= 0 || c.x > 1 || c.y > 1 || c.width > 1)) continue;
       profiles[id] = { stream: v.stream, capture: v.capture, crop: c };
     }
-    return { version: 1, deviceId: p.deviceId, profiles };
+    return { version: 1, mirrorPreviews: p.mirrorPreviews === true, deviceId: p.deviceId, profiles };
   } catch { return emptyPreferences(); }
+}
+
+// Display direction changes; persisted framing always uses original-image coordinates.
+export function frameHorizontalDelta(delta: number, mirrored: boolean): number {
+  return mirrored ? -delta : delta;
 }

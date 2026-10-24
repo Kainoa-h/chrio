@@ -2,6 +2,8 @@
 import { ref, computed, watch } from 'vue';
 import { Check } from 'lucide-vue-next';
 import CameraFrame from './CameraFrame.vue';
+import { useCameraSettings } from '@/stores/camera';
+const settings = useCameraSettings();
 import { clampCrop, type Crop } from '@/lib/cameraSettings';
 import anteriorMask from '@/assets/alignment-mask-anterior.svg';
 import posteriorMask from '@/assets/alignment-mask-posterior.svg';
@@ -64,9 +66,9 @@ watch(() => [props.show, props.imageSrc] as const, () => {
       </div>
       <p class="text-gray-300 text-sm">The full original image is shown. Move or resize the frame; saving changes only the framing.</p>
       <div class="w-full bg-black flex items-start justify-center overflow-hidden">
-        <div class="relative flex-none overflow-hidden" :style="{ width: `min(100%, ${65 * aspect}vh)`, aspectRatio: String(aspect) }">
+        <div class="relative flex-none overflow-hidden" :style="{ width: `min(100%, ${65 * aspect}vh)`, aspectRatio: String(aspect), transform: settings.preferences.mirrorPreviews ? 'scaleX(-1)' : undefined }">
           <img ref="imgRef" :key="imageSrc || ''" :src="imageSrc || ''" alt="Full original capture" class="absolute inset-0 block w-full h-full object-contain pointer-events-none select-none" @load="loaded" @error="imageError = 'Could not load the original image.'; ready = false" />
-          <CameraFrame v-if="ready" :crop="frame" :aspect="aspect" editable @update="crop = $event">
+          <CameraFrame v-if="ready" :crop="frame" :aspect="aspect" :mirrored="settings.preferences.mirrorPreviews" editable @update="crop = $event">
             <img v-if="maskSrc" :src="maskSrc" alt="" class="absolute inset-0 w-full h-full object-cover pointer-events-none opacity-50" />
           </CameraFrame>
         </div>

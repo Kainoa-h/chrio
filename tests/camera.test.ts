@@ -137,6 +137,20 @@ describe('full-frame capture', () => {
     expect(env.source.applied.length).toBe(0);
     camera.stop();
   });
+  test('mirroring the displayed video leaves captured pixels and crop metadata unchanged', async () => {
+    const env = environment({ width: 1920, height: 1080 });
+    const camera = useCamera();
+    await camera.start('a', defaultProfile());
+    const profile = { ...defaultProfile(), crop: { x: 0.2, y: 0.1, width: 0.15 } };
+    // CSS transforms on a video or its preview ancestor never enter canvas capture.
+    Object.defineProperty(env.video, 'style', { value: { transform: '' }, configurable: true });
+    const original = await camera.capture(env.video, profile);
+    env.video.style.transform = 'scaleX(-1)';
+    const mirrored = await camera.capture(env.video, profile);
+    expect(mirrored).toEqual(original);
+    expect(env.fullDraws.every(args => args.length === 4 && args[0] === 0 && args[1] === 0)).toBe(true);
+    camera.stop();
+  });
   test('changing the mask never changes the encoded original', async () => {
     const env = environment({ width: 1920, height: 1080 });
     const camera = useCamera();

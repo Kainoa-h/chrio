@@ -1,5 +1,7 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue';
+import { useCameraSettings } from '@/stores/camera';
+const settings = useCameraSettings();
 
 const props = defineProps<{
   src?: string | null;
@@ -78,15 +80,16 @@ watch(() => [props.src, props.crop], () => {
     :class="containerClass"
     style="aspect-ratio: 2 / 3;"
   >
-    <img 
-      v-if="hasImage" 
-      ref="imgRef"
-      :src="src!" 
-      :alt="alt || 'Image'" 
-      :style="imgStyle"
-      class="block"
-      @load="updateStyle"
-    />
+    <div v-if="hasImage" class="absolute inset-0 overflow-hidden" :style="{ transform: settings.preferences.mirrorPreviews ? 'scaleX(-1)' : undefined }">
+      <img
+        ref="imgRef"
+        :src="src!"
+        :alt="alt || 'Image'"
+        :style="imgStyle"
+        class="block"
+        @load="updateStyle"
+      />
+    </div>
     <div v-else class="text-gray-500 flex flex-col items-center p-4 text-center">
       <slot name="empty">
         <span class="text-sm">{{ emptyText || 'No Image' }}</span>

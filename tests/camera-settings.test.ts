@@ -1,9 +1,22 @@
 import { describe, expect, test } from 'bun:test';
 import { setActivePinia, createPinia } from 'pinia';
-import { clampCrop, fitCaptureResolution, defaultProfile, emptyPreferences, parsePreferences, settingsKey } from '../src/lib/cameraSettings';
+import { clampCrop, frameHorizontalDelta, fitCaptureResolution, defaultProfile, emptyPreferences, parsePreferences, settingsKey } from '../src/lib/cameraSettings';
 import { useCameraSettings } from '../src/stores/camera';
 
 describe('camera framing', () => {
+  test('maps screen movement and visible resize-corner direction to original coordinates', () => {
+    const original = { x: 0.2, y: 0.1, width: 0.25 };
+    for (const mirrored of [false, true]) {
+      const dx = frameHorizontalDelta(0.05, mirrored);
+      const moved = clampCrop({ ...original, x: original.x + dx }, 4 / 3);
+      const screenX = (c: typeof original) => mirrored ? 1 - c.x - c.width : c.x;
+      expect(screenX(moved) - screenX(original)).toBeCloseTo(0.05);
+      const resized = clampCrop({ ...original, width: original.width + dx }, 4 / 3);
+      const cornerX = (c: typeof original) => mirrored ? 1 - c.x - c.width : c.x + c.width;
+      expect(cornerX(resized) - cornerX(original)).toBeCloseTo(0.05);
+    }
+    expect(original).toEqual({ x: 0.2, y: 0.1, width: 0.25 });
+  });
   test('centers the largest 2:3 frame in landscape and portrait sources', () => {
     for (const aspect of [16 / 9, 4 / 3, 2 / 3, 9 / 16]) {
       const c = clampCrop(null, aspect);
@@ -36,6 +49,13 @@ describe('camera framing', () => {
 });
 
 describe('camera preferences', () => {
+  test('defaults mirroring off without discarding legacy camera profiles', () => {
+    const legacy = { version: 1, deviceId: 'a', profiles: { a: defaultProfile() } };
+    for (const mirrorPreviews of [undefined, null, 'true', 1, false]) {
+      expect(parsePreferences(JSON.stringify({ ...legacy, mirrorPreviews }))).toEqual({ ...legacy, mirrorPreviews: false });
+    }
+    expect(parsePreferences(JSON.stringify({ ...legacy, mirrorPreviews: true }))).toEqual({ ...legacy, mirrorPreviews: true });
+  });
   test('uses defaults for absent, corrupt, or unsupported data', () => {
     for (const raw of [null, '{', 'null', '{}', '{"version":2}', '{"version":1,"deviceId":"","profiles":[]}']) {
       expect(parsePreferences(raw)).toEqual(emptyPreferences());
@@ -53,12 +73,15 @@ describe('camera preferences', () => {
     Object.defineProperty(globalThis, 'localStorage', { configurable: true, value: { getItem: (key: string) => memory.get(key) ?? null, setItem: (key: string, value: string) => memory.set(key, value) } });
     setActivePinia(createPinia());
     const store = useCameraSettings();
-    const draft = { ...emptyPreferences(), deviceId: 'camera-a', profiles: { 'camera-a': defaultProfile() } };
+    const draft = { ...emptyPreferences(), deviceId: 'camera-a', mirrorPreviews: true, profiles: { 'camera-a': defaultProfile() } };
     store.save(draft);
     draft.deviceId = 'unsaved';
+    draft.mirrorPreviews = false;
+    expect(store.preferences.mirrorPreviews).toBe(true);
     expect(store.preferences.deviceId).toBe('camera-a');
     expect(parsePreferences(memory.get(settingsKey)!)).toEqual(store.preferences);
     setActivePinia(createPinia());
     expect(useCameraSettings().preferences.deviceId).toBe('camera-a');
+    expect(useCameraSettings().preferences.mirrorPreviews).toBe(true);
   });
 });

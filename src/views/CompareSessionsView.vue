@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { useCameraSettings } from '@/stores/camera';
+const cameraSettings = useCameraSettings();
 import { ref, onMounted, computed } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { commands, type Session } from "@/bindings";
@@ -467,7 +469,7 @@ onMounted(async () => {
     <div v-if="isSelectMode" class="fixed bottom-8 left-1/2 -translate-x-1/2 z-40 bg-white rounded-xl shadow-xl border border-gray-200 p-3 flex items-center gap-4 animate-in slide-in-from-bottom-4 fade-in duration-300">
         <div class="flex gap-2">
             <div v-for="img in selectedImages" :key="img.key" class="relative h-12 w-12 rounded overflow-hidden border border-gray-200 group">
-                <img :src="img.src" class="h-full w-full object-cover" />
+                <img :src="img.src" class="h-full w-full object-cover" :style="{ transform: cameraSettings.preferences.mirrorPreviews ? 'scaleX(-1)' : undefined }" />
                 <div class="absolute inset-0 bg-black/20 group-hover:bg-black/0 transition-colors"></div>
             </div>
             <!-- Placeholders -->

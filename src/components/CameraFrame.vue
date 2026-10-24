@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { onBeforeUnmount } from 'vue';
-import { clampCrop, type Crop } from '@/lib/cameraSettings';
-const props = defineProps<{ crop: Crop; aspect: number; editable: boolean }>();
+import { clampCrop, frameHorizontalDelta, type Crop } from '@/lib/cameraSettings';
+const props = defineProps<{ crop: Crop; aspect: number; editable: boolean; mirrored?: boolean }>();
 const emit = defineEmits<{ (e: 'update', value: Crop): void }>();
 let cleanup = () => {};
 function drag(event: PointerEvent, resize: boolean) {
@@ -13,7 +13,7 @@ function drag(event: PointerEvent, resize: boolean) {
   const rect = parent.getBoundingClientRect();
   const initial = { ...props.crop };
   const move = (e: PointerEvent) => {
-    const dx = (e.clientX - event.clientX) / rect.width;
+    const dx = frameHorizontalDelta((e.clientX - event.clientX) / rect.width, !!props.mirrored);
     const dy = (e.clientY - event.clientY) / rect.height;
     if (resize) update({ ...initial, width: initial.width + dx });
     else emit('update', clampCrop({ ...initial, x: initial.x + dx, y: initial.y + dy }, props.aspect));
@@ -32,9 +32,14 @@ function key(event: KeyboardEvent) {
   event.preventDefault();
   const step = event.shiftKey ? 0.025 : 0.005;
   const c = { ...props.crop };
-  if (event.altKey) c.width += ['ArrowRight', 'ArrowUp'].includes(event.key) ? step : -step;
-  else if (event.key === 'ArrowLeft') c.x -= step;
-  else if (event.key === 'ArrowRight') c.x += step;
+  if (event.altKey) {
+    const delta = ['ArrowRight', 'ArrowUp'].includes(event.key) ? step : -step;
+    c.width += event.key === 'ArrowLeft' || event.key === 'ArrowRight'
+      ? frameHorizontalDelta(delta, !!props.mirrored)
+      : delta;
+  }
+  else if (event.key === 'ArrowLeft') c.x -= frameHorizontalDelta(step, !!props.mirrored);
+  else if (event.key === 'ArrowRight') c.x += frameHorizontalDelta(step, !!props.mirrored);
   else if (event.key === 'ArrowUp') c.y -= step;
   else c.y += step;
   emit('update', clampCrop(c, props.aspect));
@@ -48,6 +53,6 @@ onBeforeUnmount(() => cleanup());
     :tabindex="editable ? 0 : undefined" role="group" aria-label="Camera frame. Arrow keys move; Alt and arrow keys resize. Shift makes larger adjustments."
     @pointerdown.stop="drag($event, false)" @keydown="key">
     <slot />
-    <button v-if="editable" type="button" tabindex="-1" aria-label="Resize camera frame" class="absolute -bottom-2 -right-2 w-5 h-5 bg-blue-500 border-2 border-white cursor-se-resize touch-none" @pointerdown.stop="drag($event, true)"></button>
+    <button v-if="editable" type="button" tabindex="-1" aria-label="Resize camera frame" class="absolute -bottom-2 -right-2 w-5 h-5 bg-blue-500 border-2 border-white touch-none" :class="mirrored ? 'cursor-sw-resize' : 'cursor-se-resize'" @pointerdown.stop="drag($event, true)"></button>
   </div>
 </template>
