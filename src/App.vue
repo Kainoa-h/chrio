@@ -8,6 +8,7 @@ import { useToast } from "@/composables/useToast";
 
 const showAbout = ref(false);
 const showSettings = ref(false);
+const showBetaWarning = ref(true);
 const { show, message, type, closeToast } = useToast();
 </script>
 
@@ -32,7 +33,14 @@ const { show, message, type, closeToast } = useToast();
   <AboutModal v-if="showAbout" @close="showAbout = false" />
   <CameraModal :show="showSettings" settings-only @close="showSettings = false" />
 
-  <div class="fixed bottom-4 left-1/2 -translate-x-1/2 z-50 p-2 bg-yellow-400 text-yellow-900 rounded-lg shadow-lg text-sm font-medium">
+  <button
+    v-if="showBetaWarning"
+    type="button"
+    class="fixed bottom-4 left-1/2 -translate-x-1/2 z-50 p-2 bg-yellow-400 text-yellow-900 rounded-lg shadow-lg text-sm font-medium cursor-pointer"
+    title="Click to dismiss"
+    aria-label="Beta build: use with caution. Dismiss warning."
+    @click="showBetaWarning = false"
+  >
     ⚠️ This is a beta build. Use with caution.
-  </div>
+  </button>
 </template>
