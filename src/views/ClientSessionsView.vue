@@ -1,7 +1,8 @@
 <script setup lang="ts">
-import { ref, onMounted } from "vue";
+import { ref, onMounted, computed, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { commands, type Session, type Client } from "@/bindings";
+import { matchesSessionDate, sessionDateParts, type SessionDateFilter } from "@/lib/sessionDates";
 import {
   useVueTable,
   FlexRender,
@@ -28,6 +29,17 @@ const loading = ref(true);
 const error = ref<string | null>(null);
 const selectedSessionIds = ref<Array<number>>(new Array());
 const client = ref<Client | null>(null);
+const dateFilter = ref<SessionDateFilter>({ year: null, month: null, day: null });
+const hasDateFilter = computed(() => Object.values(dateFilter.value).some(value => value !== null));
+const filteredSessions = computed(() => sessions.value.filter(session => matchesSessionDate(session.datetime, dateFilter.value)));
+const availableYears = computed(() => [...new Set(sessions.value.flatMap(session => {
+  const parts = sessionDateParts(session.datetime);
+  return parts ? [parts.year] : [];
+}))].sort((a, b) => b - a));
+const months = Array.from({ length: 12 }, (_, index) => ({
+  value: index + 1,
+  label: new Intl.DateTimeFormat('en-GB', { month: 'long' }).format(new Date(2020, index, 1)),
+}));
 
 const columnHelper = createColumnHelper<Session>();
 
@@ -158,7 +170,7 @@ const columns = [
 
 const table = useVueTable({
   get data() {
-    return sessions.value;
+    return filteredSessions.value;
   },
   columns,
   getCoreRowModel: getCoreRowModel(),
@@ -169,6 +181,8 @@ const table = useVueTable({
     },
   },
 });
+
+watch(dateFilter, () => table.setPageIndex(0), { deep: true, flush: 'sync' });
 
 onMounted(async () => {
   try {
@@ -231,6 +245,28 @@ onMounted(async () => {
     </div>
 
     <div v-else class="space-y-4">
+      <div class="flex flex-wrap items-end gap-3">
+        <label class="text-sm font-medium text-gray-700">Year
+          <select v-model="dateFilter.year" class="block mt-1 rounded-md border border-gray-300 bg-white px-3 py-2 text-sm">
+            <option :value="null">All years</option>
+            <option v-for="year in availableYears" :key="year" :value="year">{{ year }}</option>
+          </select>
+        </label>
+        <label class="text-sm font-medium text-gray-700">Month
+          <select v-model="dateFilter.month" class="block mt-1 rounded-md border border-gray-300 bg-white px-3 py-2 text-sm">
+            <option :value="null">All months</option>
+            <option v-for="month in months" :key="month.value" :value="month.value">{{ month.label }}</option>
+          </select>
+        </label>
+        <label class="text-sm font-medium text-gray-700">Day
+          <select v-model="dateFilter.day" class="block mt-1 rounded-md border border-gray-300 bg-white px-3 py-2 text-sm">
+            <option :value="null">All days</option>
+            <option v-for="day in 31" :key="day" :value="day">{{ day }}</option>
+          </select>
+        </label>
+        <button v-if="hasDateFilter" class="px-3 py-2 text-sm text-blue-600 hover:underline" @click="dateFilter = { year: null, month: null, day: null }">Clear filters</button>
+        <p class="py-2 text-sm text-gray-500" aria-live="polite">{{ filteredSessions.length }} of {{ sessions.length }} sessions</p>
+      </div>
       <div class="rounded-md border border-gray-200 bg-white shadow-sm overflow-hidden">
         <div class="relative w-full overflow-auto">
           <Table>
@@ -264,7 +300,7 @@ onMounted(async () => {
               <template v-else>
                 <TableRow>
                   <TableCell :colspan="columns.length" class="h-24 text-center text-gray-500">
-                    No sessions found for this client.
+                    {{ hasDateFilter ? 'No sessions match these date filters.' : 'No sessions found for this client.' }}
                   </TableCell>
                 </TableRow>
               </template>
@@ -277,7 +313,7 @@ onMounted(async () => {
       <div class="flex items-center justify-between px-2">
         <div class="flex items-center gap-2 text-sm text-gray-700">
           <span>Page</span>
-          <span class="font-medium">{{ table.getState().pagination.pageIndex + 1 }}</span>
+          <span class="font-medium">{{ table.getPageCount() ? table.getState().pagination.pageIndex + 1 : 0 }}</span>
           <span>of</span>
           <span class="font-medium">{{ table.getPageCount() }}</span>
         </div>
