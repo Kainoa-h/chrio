@@ -71,6 +71,9 @@ onBeforeRouteLeave((to) => {
     showLeaveConfirm.value = true;
     return false;
   }
+  if (!isDirty.value && !savedSuccessfully.value && lastAutosaveAt.value !== null) {
+    showToastMsg('Session saved!', 'success');
+  }
 });
 
 const { showToast: showToastMsg } = useToast();
