@@ -4,6 +4,7 @@ import { useRoute, useRouter, onBeforeRouteLeave } from "vue-router";
 import { commands, type CreateSessionDto, type Client, type UpdateSessionDto} from "@/bindings";
 import { ArrowLeft, Camera, Trash2 } from "lucide-vue-next";
 import CameraModal from "@/components/CameraModal.vue";
+import type { Crop } from "@/lib/cameraSettings";
 import RatioImage from "@/components/RatioImage.vue";
 import ImageCropper from "@/components/ImageCropper.vue";
 import ConfirmDialog from "@/components/ConfirmDialog.vue";
@@ -182,10 +183,10 @@ function openCropper(type: string) {
   }
 }
 
-function handlePhotoTaken(photoData: string) {
+function handlePhotoTaken(photoData: string, crop: Crop | null = null) {
   if (!activeImageType.value) return;
   imagePreviews.value[activeImageType.value] = photoData;
-  cropData.value[activeImageType.value] = null;
+  cropData.value[activeImageType.value] = crop;
   dirtyImages.value.add(activeImageType.value);
   autoSave();
 }
@@ -238,9 +239,7 @@ async function performSave(): Promise<boolean> {
 
         if (result.status === "ok") {
           (newSession.value as any)[type] = result.data;
-          if (cropData.value[type]) {
-             (newSession.value as any)[`${type}_crop`] = JSON.stringify(cropData.value[type]);
-          }
+          (newSession.value as any)[`${type}_crop`] = cropData.value[type] ? JSON.stringify(cropData.value[type]) : null;
         } else {
           throw new Error(`Failed to save ${type} image: ${result.error}`);
         }
