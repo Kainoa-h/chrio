@@ -16,6 +16,14 @@ const clientStore = useClientStore();
 
 const isEditing = computed(() => !!props.client);
 const showConfirmChanges = ref(false); // New state for confirmation
+const nameError = ref("");
+
+function validateNames() {
+  const valid = [newClient.value.firstname, newClient.value.lastname]
+    .every(name => /^[A-Za-z0-9]+$/.test(name));
+  nameError.value = valid ? "" : "First and last names must contain only letters A–Z, a–z, and numbers 0–9.";
+  return valid;
+}
 
 const newClient = ref({
   firstname: "",
@@ -45,7 +53,7 @@ watch(() => props.client, (newVal) => {
 }, { immediate: true });
 
 async function handleSubmit() {
-  if (!newClient.value.firstname || !newClient.value.lastname) return;
+  if (!validateNames()) return;
 
   if (isEditing.value) {
     showConfirmChanges.value = true; // Show confirmation dialog
@@ -57,7 +65,7 @@ async function handleSubmit() {
 }
 
 async function commitUpdate() {
-  if (!newClient.value.firstname || !newClient.value.lastname || !props.client) return;
+  if (!validateNames() || !props.client) return;
   await clientStore.updateClient({ ...newClient.value, id: props.client.id });
   emit('close');
 }
@@ -86,6 +94,9 @@ function closeModal() {
               id="firstName"
               v-model="newClient.firstname"
               type="text"
+              required
+              pattern="[A-Za-z0-9]+"
+              title="Use only letters A–Z, a–z, and numbers 0–9."
               class="w-full rounded-lg border border-gray-300 px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               :disabled="showConfirmChanges"
             />
@@ -96,12 +107,17 @@ function closeModal() {
               id="lastName"
               v-model="newClient.lastname"
               type="text"
+              required
+              pattern="[A-Za-z0-9]+"
+              title="Use only letters A–Z, a–z, and numbers 0–9."
               class="w-full rounded-lg border border-gray-300 px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               :disabled="showConfirmChanges"
             />
           </div>
         </div>
-        
+        <p class="text-sm text-gray-600">Names may contain only letters A–Z, a–z, and numbers 0–9.</p>
+        <p v-if="nameError" role="alert" class="text-sm text-red-700">{{ nameError }}</p>
+
         <div>
           <label class="block text-sm font-medium text-gray-700 mb-1">Date of Birth</label>
           <input 

@@ -92,6 +92,49 @@ async updateSessionCrop(sessionId: number, imageType: string, cropData: string) 
     if(e instanceof Error) throw e;
     else return { status: "error", error: e  as any };
 }
+},
+async beginBackup() : Promise<Result<DataSummary, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("begin_backup") };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+async endBackup() : Promise<Result<null, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("end_backup") };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+async exportBackup() : Promise<Result<string | null, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("export_backup") };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+async validateBackup() : Promise<Result<DataSummary | null, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("validate_backup") };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+async importBackup() : Promise<Result<null, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("import_backup") };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+async backupStartupMessage() : Promise<string | null> {
+    return await TAURI_INVOKE("backup_startup_message");
 }
 }
 
@@ -108,6 +151,7 @@ async updateSessionCrop(sessionId: number, imageType: string, cropData: string) 
 export type Client = { id: number; firstname: string; lastname: string; dob: string; sex: string; registration_date: string }
 export type CreateClientDto = { firstname: string; lastname: string; dob: string; sex: string }
 export type CreateSessionDto = { client_id: number; height: number | null; weight: number | null; anterior: string | null; posterior: string | null; right_lateral: string | null; left_lateral: string | null; notes: string | null; anterior_crop: string | null; posterior_crop: string | null; right_lateral_crop: string | null; left_lateral_crop: string | null }
+export type DataSummary = { clients: number; sessions: number; photos: number }
 export type Session = { id: number; client_id: number; datetime: string; session_number: number; height: number | null; weight: number | null; anterior: string | null; posterior: string | null; right_lateral: string | null; left_lateral: string | null; notes: string | null; anterior_crop: string | null; posterior_crop: string | null; right_lateral_crop: string | null; left_lateral_crop: string | null }
 export type UpdateClientDto = { id: number; firstname: string; lastname: string; dob: string; sex: string }
 export type UpdateSessionDto = { id: number; height: number | null; weight: number | null; anterior: string | null; posterior: string | null; right_lateral: string | null; left_lateral: string | null; notes: string | null; anterior_crop: string | null; posterior_crop: string | null; right_lateral_crop: string | null; left_lateral_crop: string | null }

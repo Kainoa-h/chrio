@@ -30,3 +30,9 @@ tokio = { version = "1", features = ["full"] }
 chrono = { version = "0.4", features = ["serde"] }
 base64 = "0.22.1"
 tauri-plugin-fs = "2.4.4"
+tauri-plugin-dialog = "2"
+anyhow = "1"
+sha2 = "0.10"
+tempfile = "3"
+zip = { version = "2", default-features = false }
+fs2 = "0.4"
